@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Facebook, Instagram } from 'lucide-react';
 
@@ -40,7 +41,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="text-center">
-           <p className="text-[10px] text-gray-600 font-mono tracking-widest">© 2024 FANGE TECHNOLOGY. v1.4 | ALL RIGHTS RESERVED.</p>
+           <p className="text-[10px] text-gray-600 font-mono tracking-widest">© 2024 FANGE TECHNOLOGY. v1.6 | ALL RIGHTS RESERVED.</p>
         </div>
 
       </div>

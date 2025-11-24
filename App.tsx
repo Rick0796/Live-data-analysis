@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -9,10 +10,12 @@ import { ReportView } from './components/ReportView';
 import { UploadView } from './components/UploadView';
 import { HistoryView } from './components/HistoryView';
 import { ScriptAnalysisView } from './components/ScriptAnalysisView';
+import { AuthModal } from './components/AuthModal';
 import { ParticleBackground } from './components/ParticleBackground';
-import { Tab, StreamData, KnowledgeItem, AnalysisResult, HistoryRecord, TrendData, TrendAnalysisResult, ScriptAnalysisResult, ScriptStage, ScriptState } from './types';
+import { Tab, StreamData, KnowledgeItem, AnalysisResult, HistoryRecord, TrendData, TrendAnalysisResult, ScriptAnalysisResult, ScriptStage, ScriptState, User } from './types';
 import { analyzeStream } from './services/geminiService';
 
+// Initial Knowledge Base (Same as before)
 const INITIAL_KNOWLEDGE: KnowledgeItem[] = [
   {
     id: '0',
@@ -80,24 +83,24 @@ const DEFAULT_INPUT_DATA: Partial<StreamData> = {
     notes: ""
 };
 
+const DB_HISTORY_PREFIX = 'streammaster_history_';
+
 const App: React.FC = () => {
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   const [hasStarted, setHasStarted] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(Tab.DASHBOARD);
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeItem[]>(INITIAL_KNOWLEDGE);
   
-  // -- Persistent State for Single Stream Analysis --
-  // Lifted from InputForm to persist across tab changes
   const [inputFormData, setInputFormData] = useState<Partial<StreamData>>(DEFAULT_INPUT_DATA);
-
-  // -- Stream Analysis State --
   const [report, setReport] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // -- Restore State for Dashboard/Trend --
   const [initialTrendData, setInitialTrendData] = useState<TrendData[] | undefined>(undefined);
   const [initialTrendResult, setInitialTrendResult] = useState<TrendAnalysisResult | null>(undefined);
 
-  // -- Persistence State for Script --
   const [scriptState, setScriptState] = useState<ScriptState>({
     stage: 'newbie',
     productName: '',
@@ -105,28 +108,75 @@ const App: React.FC = () => {
     result: null
   });
 
-  // -- Unified History --
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-
-  // -- Mobile Sidebar State --
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Restore session
   useEffect(() => {
-    // Force scroll to top on tab change
+    const savedSession = localStorage.getItem('streammaster_current_user');
+    if (savedSession) {
+        try {
+            const parsedUser = JSON.parse(savedSession);
+            // Check expiry
+            if (!parsedUser.expiryDate || Date.now() < parsedUser.expiryDate) {
+                 setUser(parsedUser);
+            } else {
+                 localStorage.removeItem('streammaster_current_user');
+            }
+        } catch (e) {
+            console.error("Session parse error", e);
+        }
+    }
+  }, []);
+
+  // Load History on Login
+  useEffect(() => {
+    if (user) {
+        const key = `${DB_HISTORY_PREFIX}${user.username}`;
+        const savedHistory = localStorage.getItem(key);
+        if (savedHistory) {
+            try {
+                setHistory(JSON.parse(savedHistory));
+            } catch (e) {
+                console.error("Failed to load history");
+            }
+        }
+    } else {
+        setHistory([]);
+    }
+  }, [user]);
+
+  // Persist History on Change (if logged in)
+  useEffect(() => {
+    if (user && history.length > 0) {
+        const key = `${DB_HISTORY_PREFIX}${user.username}`;
+        localStorage.setItem(key, JSON.stringify(history));
+    }
+  }, [history, user]);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab, hasStarted]);
 
-  // Handle Tab Change with sidebar auto-close on mobile
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     setIsSidebarOpen(false);
   };
 
+  const checkAccess = () => {
+    if (!user || !user.isActivated) {
+        setShowAuthModal(true);
+        return false;
+    }
+    return true;
+  };
+
   const handleUploadComplete = (extractedData?: Partial<StreamData>) => {
+    if (!checkAccess()) return;
+    
     setHasStarted(true);
     if (extractedData) {
-      // Merge extracted data into current form state
       setInputFormData(prev => ({ ...prev, ...extractedData }));
       setActiveTab(Tab.INPUT); 
     } else {
@@ -135,9 +185,9 @@ const App: React.FC = () => {
   };
 
   const handleDirectEntry = () => {
+    if (!checkAccess()) return;
     setHasStarted(true);
     setActiveTab(Tab.INPUT);
-    // Do NOT clear data here to allow users to return to their draft
   };
 
   const handleNavigateToHome = () => {
@@ -147,11 +197,12 @@ const App: React.FC = () => {
 
   const handleInputClear = () => {
       setInputFormData(DEFAULT_INPUT_DATA);
-      setReport(null); // Also clear associated report
+      setReport(null);
   };
 
   const handleDataSubmit = async () => {
-    // Use the persisted inputFormData
+    if (!checkAccess()) return;
+
     const dataToSubmit = { ...inputFormData, id: Date.now().toString() } as StreamData;
     
     setActiveTab(Tab.REPORT);
@@ -160,7 +211,6 @@ const App: React.FC = () => {
     
     try {
       const resultJSON = await analyzeStream(dataToSubmit, knowledgeBase);
-      
       setReport(resultJSON);
       
       const newRecord: HistoryRecord = {
@@ -170,6 +220,7 @@ const App: React.FC = () => {
         data: dataToSubmit,
         report: resultJSON
       };
+      // History persistence is handled by useEffect
       setHistory(prev => [newRecord, ...prev]);
 
     } catch (e) {
@@ -181,7 +232,7 @@ const App: React.FC = () => {
 
   const handleCancelAnalysis = () => {
     setIsAnalyzing(false);
-    setActiveTab(Tab.INPUT); // Return to input form
+    setActiveTab(Tab.INPUT); 
     setReport(null);
   };
 
@@ -190,16 +241,17 @@ const App: React.FC = () => {
   }
 
   const handleViewHistory = (record: HistoryRecord) => {
+    setHasStarted(true); // Ensure we move out of upload view
+    
     if (record.type === 'STREAM') {
-      setInputFormData(record.data); // Restore input data
-      setReport(record.report); // Restore report
+      setInputFormData(record.data); 
+      setReport(record.report); 
       setActiveTab(Tab.REPORT);
     } else if (record.type === 'TREND') {
       setInitialTrendData(record.data);
       setInitialTrendResult(record.report);
       setActiveTab(Tab.DASHBOARD);
     } else if (record.type === 'SCRIPT') {
-      // Restore script state from history
       setScriptState({
         stage: record.inputs.stage,
         productName: record.inputs.product,
@@ -211,17 +263,39 @@ const App: React.FC = () => {
     setShowHistory(false);
   };
 
+  const handleLogin = (loggedInUser: User) => {
+    setUser(loggedInUser);
+    setShowAuthModal(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('streammaster_current_user'); // Clear session
+    setUser(null);
+    setShowAuthModal(true); // Prompt login again
+    setHasStarted(false); // Reset to landing page
+  };
+
   return (
     <div className="min-h-screen text-gray-200 font-sans selection:bg-tech selection:text-black relative overflow-hidden flex flex-col">
       <ParticleBackground />
+      
+      {showAuthModal && (
+        <AuthModal 
+            onLogin={handleLogin} 
+            onClose={() => setShowAuthModal(false)} 
+        />
+      )}
+
       <Header 
+        user={user}
         onNavigateToDashboard={handleNavigateToHome} 
         setActiveTab={setActiveTab} 
         onToggleHistory={() => setShowHistory(true)}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        onOpenAuth={() => setShowAuthModal(true)}
+        onLogout={handleLogout}
       />
 
-      {/* History Slide-out Sidebar */}
       {showHistory && (
         <div className="fixed inset-0 z-[60] flex justify-end">
             <div 
@@ -241,7 +315,6 @@ const App: React.FC = () => {
         </div>
       ) : (
         <div className="flex pt-20 flex-1 overflow-hidden h-[calc(100vh-80px)]">
-          {/* Sidebar with Mobile State */}
           <Sidebar 
             activeTab={activeTab} 
             setActiveTab={handleTabChange} 
@@ -249,7 +322,6 @@ const App: React.FC = () => {
             onClose={() => setIsSidebarOpen(false)}
           />
           
-          {/* Main Content Area - Responsive Padding */}
           <main className="flex-1 overflow-y-auto pl-0 md:pl-64 relative z-10 scroll-smooth w-full">
             <div className="max-w-[1600px] mx-auto min-h-screen flex flex-col">
               <div className="p-4 md:p-8 flex-1">
@@ -275,7 +347,6 @@ const App: React.FC = () => {
                 {activeTab === Tab.SCRIPT_ANALYSIS && (
                   <ScriptAnalysisView 
                     onSaveToHistory={handleSaveToHistory}
-                    // Pass persistence state props
                     scriptState={scriptState}
                     setScriptState={setScriptState}
                   />

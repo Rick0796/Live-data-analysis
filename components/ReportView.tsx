@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { StreamData, AnalysisResult, ChatMessage } from '../types';
-import { Share2, Printer, AlertTriangle, CheckCircle2, Cpu, Mic2, Zap, Target, Sparkles, Send, Bot, User, BarChart, FileDown, Loader2, Database, Network, Lock, Activity, XCircle, ThumbsUp, MessageCircleQuestion, Megaphone, Settings, ShoppingCart } from 'lucide-react';
+import { Share2, Printer, AlertTriangle, CheckCircle2, Cpu, Mic2, Zap, Target, Sparkles, Send, Bot, User, BarChart, FileDown, Loader2, Database, Network, Lock, Activity, XCircle, ThumbsUp, MessageCircleQuestion, Megaphone, Settings, ShoppingCart, Brain, ArrowRight } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { sendChatMessage } from '../services/geminiService';
 import html2canvas from 'html2canvas';
@@ -17,11 +18,11 @@ interface ReportViewProps {
 const cleanText = (text: string) => {
   if (!text) return "";
   return text
-    .replace(/<[^>]*>/g, '') // Remove HTML tags like <span style="...">
-    .replace(/\*\*/g, '') // Remove bold
-    .replace(/##/g, '') // Remove headers
-    .replace(/__/g, '') // Remove italics
-    .replace(/^- /gm, '') // Remove list hyphens at start of line
+    .replace(/<[^>]*>/g, '') 
+    .replace(/\*\*/g, '') 
+    .replace(/##/g, '') 
+    .replace(/__/g, '') 
+    .replace(/^- /gm, '') 
     .trim();
 };
 
@@ -45,8 +46,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
         { pct: 10, text: "正在接入直播间音频流..." },
         { pct: 25, text: "AI 识别主播语感与情绪波动..." },
         { pct: 40, text: "正在拆解流量层级与互动密度..." },
-        { pct: 60, text: "分析憋单逻辑与拉新策略..." },
-        { pct: 80, text: "模拟中控配合与库存稀缺性..." },
+        { pct: 60, text: "深度思考用户痛点与底层逻辑..." }, // V1.6 Update
+        { pct: 80, text: "构建反向抓取话术模型..." },
         { pct: 95, text: "生成最终诊断报告..." }
       ];
 
@@ -55,11 +56,9 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
       const interval = setInterval(() => {
         setLoadingProgress(prev => {
           if (prev >= 99) return 99;
-          // Speed up at start, slow down at end
           const increment = prev < 50 ? Math.random() * 3 : Math.random() * 0.5;
           const nextPct = prev + increment;
           
-          // Update text based on percentage
           if (currentStepIndex < steps.length - 1 && nextPct > steps[currentStepIndex + 1].pct) {
             currentStepIndex++;
             setLoadingStep(steps[currentStepIndex].text);
@@ -88,7 +87,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
     }
   }, [report, chatHistory.length]);
 
-  // Scroll ONLY the chat container, not the whole page
   useEffect(() => {
     if (chatScrollRef.current) {
         chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -170,35 +168,24 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] w-full relative overflow-hidden">
-        {/* Animated Background Elements */}
         <div className="absolute inset-0 z-0">
            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-tech/5 rounded-full blur-[100px] animate-pulse"></div>
            <div className="absolute top-1/4 left-1/4 w-[2px] h-[100px] bg-gradient-to-b from-transparent via-tech/20 to-transparent animate-[float_3s_ease-in-out_infinite]"></div>
-           <div className="absolute bottom-1/4 right-1/4 w-[2px] h-[150px] bg-gradient-to-b from-transparent via-purple-500/20 to-transparent animate-[float_4s_ease-in-out_infinite_delay-500]"></div>
         </div>
 
         <div className="z-10 flex flex-col items-center max-w-md w-full">
-            {/* Tech Spinner */}
             <div className="relative w-32 h-32 mb-10">
                 <div className="absolute inset-0 rounded-full border-2 border-tech/20"></div>
                 <div className="absolute inset-0 rounded-full border-t-2 border-tech animate-spin"></div>
                 <div className="absolute inset-4 rounded-full border-2 border-purple-500/20 border-dashed animate-[spin-slow_10s_linear_infinite_reverse]"></div>
-                
-                {/* Center Icon */}
                 <div className="absolute inset-0 flex items-center justify-center">
                    <Cpu className="w-10 h-10 text-tech animate-pulse" />
                 </div>
             </div>
 
-            {/* Text & Progress */}
-            <h3 className="text-2xl font-bold text-white mb-2 tracking-wide font-sans">
-                智能复盘生成中
-            </h3>
-            <p className="text-tech font-mono text-sm mb-6 animate-pulse">
-                {loadingStep}
-            </p>
+            <h3 className="text-2xl font-bold text-white mb-2 tracking-wide font-sans">智能复盘生成中</h3>
+            <p className="text-tech font-mono text-sm mb-6 animate-pulse">{loadingStep}</p>
 
-            {/* Progress Bar Container */}
             <div className="w-full h-2 bg-black/50 border border-white/10 rounded-full overflow-hidden relative mb-2">
                 <div 
                     className="absolute top-0 left-0 h-full bg-gradient-to-r from-tech via-blue-500 to-purple-500 transition-all duration-300 ease-out"
@@ -213,11 +200,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
                 <span>{Math.round(loadingProgress)}%</span>
             </div>
 
-            {/* Cancel Button */}
-            <button 
-                onClick={onCancel}
-                className="flex items-center gap-2 px-6 py-2 rounded-full border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 hover:border-red-500/50 transition-all group"
-            >
+            <button onClick={onCancel} className="flex items-center gap-2 px-6 py-2 rounded-full border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all group">
                 <XCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span className="text-sm font-medium">取消 / 停止分析</span>
             </button>
@@ -249,7 +232,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
                  <div className="flex items-center gap-4 mb-2">
                      <h2 className="text-3xl font-bold text-white tracking-tight font-sans">复盘报告</h2>
                      <div className="px-3 py-1 bg-tech/10 text-tech text-xs font-mono font-bold rounded border border-tech/20">
-                        V1.4 深度策略优化 (正式版)
+                        V1.6 深度策略版
                      </div>
                  </div>
                  <div className="flex items-center gap-4 text-gray-400 text-sm font-mono mt-2">
@@ -276,9 +259,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
         </div>
       </div>
 
-      {/* Main Report Content to be Exported - WRAPPER DIV for html2canvas target */}
       <div ref={reportRef} className="bg-[#050a14] p-6 rounded-3xl border border-white/5"> 
-        {/* Core Analytics Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Left Column: Radar & Summary (4 cols) */}
@@ -312,22 +293,39 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
                   </div>
               </div>
 
-              {/* User Q&A Section (New Feature v1.3) */}
+              {/* User Q&A Section (Deep Thinking V1.6) */}
               {report.userQuestionAnalysis && report.userQuestionAnalysis.length > 0 && (
                 <div className="bg-blue-500/5 border border-blue-500/20 rounded-3xl p-6">
                     <div className="flex items-center gap-2 mb-4">
-                        <MessageCircleQuestion className="w-5 h-5 text-blue-400" />
-                        <h3 className="text-blue-400 font-bold text-sm uppercase tracking-wide">用户疑问与痛点粉碎</h3>
+                        <Brain className="w-5 h-5 text-blue-400" />
+                        <h3 className="text-blue-400 font-bold text-sm uppercase tracking-wide">深度痛点粉碎 (Deep Thinking)</h3>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {report.userQuestionAnalysis.map((qa, idx) => (
-                            <div key={idx} className="space-y-2">
+                            <div key={idx} className="space-y-3 pb-4 border-b border-white/5 last:border-0 last:pb-0">
                                 <h4 className="text-white font-bold text-sm flex items-start gap-2">
-                                    <span className="text-blue-500 mt-1">Q:</span>
+                                    <span className="text-blue-500 mt-0.5">Q:</span>
                                     {cleanText(qa.title)}
                                 </h4>
-                                <div className="text-sm text-gray-300 leading-relaxed pl-5 whitespace-pre-wrap border-l border-blue-500/20">
-                                    {cleanText(qa.content)}
+                                
+                                {/* Deep Thinking Block */}
+                                <div className="ml-5 space-y-2">
+                                    <div className="text-xs text-blue-200/60 font-bold uppercase tracking-wider">深度思考 (Why)</div>
+                                    <p className="text-sm text-gray-400 leading-relaxed bg-black/20 p-2 rounded border-l-2 border-blue-500/30">
+                                        {cleanText(qa.deepThinking)}
+                                    </p>
+
+                                    <div className="text-xs text-tech/60 font-bold uppercase tracking-wider mt-2">反直觉策略 (Strategy)</div>
+                                    <p className="text-sm text-gray-300">
+                                        {cleanText(qa.strategy)}
+                                    </p>
+                                    
+                                    {qa.action && (
+                                        <div className="flex items-start gap-2 mt-2 text-sm text-green-300 bg-green-500/10 p-2 rounded">
+                                            <ArrowRight className="w-4 h-4 mt-0.5 shrink-0" />
+                                            <span>{cleanText(qa.action)}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -367,7 +365,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
                   </div>
               </div>
 
-              {/* Highlights (New Feature) */}
+              {/* Highlights */}
               {report.highlights && report.highlights.length > 0 && (
                 <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -419,7 +417,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
                       {report.strategy.map((strat, idx) => (
                           <div key={idx} className="relative bg-black/20 rounded-xl p-4 border border-white/5">
                               <div className="flex items-center gap-2 mb-3">
-                                  {/* Strategy Type Badge */}
                                   {strat.type === 'traffic' && <span className="bg-purple-500/20 text-purple-300 text-[10px] px-2 py-0.5 rounded border border-purple-500/20 flex items-center gap-1"><Network className="w-3 h-3"/> 流量</span>}
                                   {strat.type === 'operation' && <span className="bg-blue-500/20 text-blue-300 text-[10px] px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1"><Settings className="w-3 h-3"/> 运营</span>}
                                   {strat.type === 'content' && <span className="bg-green-500/20 text-green-300 text-[10px] px-2 py-0.5 rounded border border-green-500/20 flex items-center gap-1"><Megaphone className="w-3 h-3"/> 内容</span>}
@@ -430,13 +427,11 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
                               <div className="space-y-4">
                                   {strat.steps.map((step, sIdx) => (
                                       <div key={sIdx}>
-                                          {/* Depth Analysis (Teacher's Voice) */}
                                           <p className="text-sm text-gray-300 leading-relaxed mb-2 flex gap-2">
                                               <span className="text-tech/50 mt-1">•</span>
                                               <span className="whitespace-pre-wrap">{cleanText(step.depthAnalysis)}</span>
                                           </p>
 
-                                          {/* Highlighted Script Optimization (New Feature v1.3) */}
                                           {step.scriptOptimization && (
                                               <div className="ml-4 mt-2 p-3 bg-yellow-500/10 border-l-2 border-yellow-500 rounded-r-lg">
                                                   <h5 className="text-[10px] font-bold text-yellow-500 uppercase mb-1 flex items-center gap-1">

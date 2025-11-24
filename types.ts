@@ -1,11 +1,18 @@
 
-
 export enum Tab {
   DASHBOARD = 'DASHBOARD',
   INPUT = 'INPUT',
   KNOWLEDGE = 'KNOWLEDGE',
   REPORT = 'REPORT',
   SCRIPT_ANALYSIS = 'SCRIPT_ANALYSIS',
+}
+
+export interface User {
+  username: string;
+  isActivated: boolean;
+  activationType: 'TRIAL' | '6MONTHS' | 'PERMANENT' | 'NONE';
+  expiryDate: number | null; // Timestamp
+  loginTime: number;
 }
 
 export interface StreamData {
@@ -60,10 +67,12 @@ export interface AnalysisResult {
     toneAnalysis: string;
     suggestion: string;
   };
-  // New: Dedicated section for specific user questions
+  // New: Dedicated section for specific user questions (Deep Thinking V1.6)
   userQuestionAnalysis?: {
     title: string;
-    content: string;
+    deepThinking: string; // 深度思考：原因与逻辑
+    strategy: string; // 策略：反直觉打法
+    action: string; // 动作：具体怎么做
   }[];
   // Updated Strategy Structure
   strategy: {

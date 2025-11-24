@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, Activity, Users, ShoppingBag, BarChart2, Sparkles, Save, Camera, Loader2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity, Users, ShoppingBag, BarChart2, Sparkles, Camera, Loader2, ScanLine } from 'lucide-react';
 import { TrendData, TrendAnalysisResult, HistoryRecord } from '../types';
 import { analyzeTrend, recognizeTrendData } from '../services/geminiService';
 
@@ -119,16 +120,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSaveToHistory, i
 
   if (!hasData) {
     return (
-      <div className="animate-[fadeIn_0.5s_ease-out] max-w-4xl mx-auto">
-        <div className="glass-card p-8 rounded-2xl border border-white/10">
-          <div className="mb-8 flex justify-between items-end">
-             <div>
-                <h2 className="text-2xl font-bold text-white mb-2">综合数据录入</h2>
-                <p className="text-gray-400">请选择分析周期并录入核心数据，AI 将为您生成深度趋势诊断。</p>
+      <div className="animate-[fadeIn_0.5s_ease-out] max-w-5xl mx-auto">
+        <div className="glass-card p-8 rounded-3xl border border-white/10 relative overflow-hidden">
+          {/* Header Row */}
+          <div className="flex justify-between items-start mb-10 relative z-10">
+             <div className="max-w-xl">
+                <h2 className="text-3xl font-bold text-white mb-2 tracking-wide font-sans">综合数据录入</h2>
+                <p className="text-gray-400 text-sm leading-relaxed">请选择分析周期并录入核心数据。AI 将自动生成多维雷达图与趋势诊断，帮助您洞察流量层级跃迁的关键节点。</p>
              </div>
              
-             {/* OCR Button */}
-             <div>
+             {/* Compact OCR Button */}
+             <div className="flex items-center">
                  <input 
                     type="file" 
                     ref={fileInputRef} 
@@ -139,85 +141,102 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSaveToHistory, i
                  <button 
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploadingImage}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg transition-all"
+                    className="group flex items-center gap-2 px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full transition-all hover:scale-105"
+                    title="上传趋势图自动识别"
                  >
-                    {isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                    {isUploadingImage ? 'AI 识别中...' : '📸 识别趋势图'}
+                    <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500 text-white transition-colors">
+                        {isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+                    </div>
+                    <span className="text-sm font-bold pr-2">{isUploadingImage ? '识别中...' : '识别趋势图'}</span>
                  </button>
              </div>
           </div>
 
-          <div className="flex justify-center gap-4 mb-8">
+          <div className="flex justify-center gap-2 mb-8 bg-black/20 p-1.5 rounded-xl w-fit mx-auto border border-white/5">
             <button
               onClick={() => handleModeChange(3)}
-              className={`px-6 py-2 rounded-lg border transition-all ${dayMode === 3 ? 'bg-tech text-black border-tech font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${dayMode === 3 ? 'bg-tech text-black shadow-lg shadow-tech/20' : 'text-gray-400 hover:text-white'}`}
             >
               近 3 天数据
             </button>
             <button
               onClick={() => handleModeChange(7)}
-              className={`px-6 py-2 rounded-lg border transition-all ${dayMode === 7 ? 'bg-tech text-black border-tech font-bold' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${dayMode === 7 ? 'bg-tech text-black shadow-lg shadow-tech/20' : 'text-gray-400 hover:text-white'}`}
             >
               近 7 天数据
             </button>
           </div>
 
-          <div className="grid gap-6">
+          <div className="grid gap-4 mb-8">
             {trendData.map((data, index) => (
-              <div key={index} className="grid grid-cols-5 gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/5">
-                <div className="text-tech font-mono font-bold">
+              <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                <div className="text-tech font-mono font-bold flex items-center gap-2 md:block">
+                    <span className="md:hidden text-xs text-gray-500 w-20">日期:</span>
                     <input 
                         type="text" 
                         value={data.date} 
                         onChange={(e) => handleInputChange(index, 'date', e.target.value)}
-                        className="bg-transparent border-none text-tech font-bold w-16 focus:outline-none focus:border-b border-tech"
+                        className="bg-transparent border-none text-tech font-bold w-full md:w-20 focus:outline-none focus:border-b border-tech"
                     />
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">成交额 (GMV)</label>
-                  <input 
-                    type="number" 
-                    value={data.gmv || ''} 
-                    onChange={(e) => handleInputChange(index, 'gmv', e.target.value)}
-                    className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-tech outline-none" 
-                  />
+                <div className="flex items-center gap-2 md:block">
+                  <label className="md:hidden text-xs text-gray-500 w-20">GMV:</label>
+                  <div className="relative w-full">
+                     <span className="hidden md:block text-[10px] text-gray-500 mb-1 uppercase tracking-wider">成交额 (GMV)</span>
+                     <input 
+                        type="number" 
+                        value={data.gmv || ''} 
+                        onChange={(e) => handleInputChange(index, 'gmv', e.target.value)}
+                        className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white text-sm focus:border-tech outline-none" 
+                     />
+                  </div>
                 </div>
-                <div>
-                   <label className="text-xs text-gray-500 block mb-1">场观 (Total Views)</label>
-                   <input 
-                    type="number" 
-                    value={data.totalViews || ''}
-                    onChange={(e) => handleInputChange(index, 'totalViews', e.target.value)}
-                    className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-tech outline-none" 
-                  />
+                <div className="flex items-center gap-2 md:block">
+                   <label className="md:hidden text-xs text-gray-500 w-20">场观:</label>
+                   <div className="relative w-full">
+                      <span className="hidden md:block text-[10px] text-gray-500 mb-1 uppercase tracking-wider">场观 (Views)</span>
+                      <input 
+                        type="number" 
+                        value={data.totalViews || ''}
+                        onChange={(e) => handleInputChange(index, 'totalViews', e.target.value)}
+                        className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white text-sm focus:border-tech outline-none" 
+                      />
+                   </div>
                 </div>
-                <div>
-                   <label className="text-xs text-gray-500 block mb-1">千次成交 (GPM)</label>
-                   <input 
-                    type="number" 
-                    value={data.gpm || ''}
-                    onChange={(e) => handleInputChange(index, 'gpm', e.target.value)}
-                    className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-tech outline-none" 
-                  />
+                <div className="flex items-center gap-2 md:block">
+                   <label className="md:hidden text-xs text-gray-500 w-20">GPM:</label>
+                   <div className="relative w-full">
+                      <span className="hidden md:block text-[10px] text-gray-500 mb-1 uppercase tracking-wider">千次 (GPM)</span>
+                      <input 
+                        type="number" 
+                        value={data.gpm || ''}
+                        onChange={(e) => handleInputChange(index, 'gpm', e.target.value)}
+                        className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white text-sm focus:border-tech outline-none" 
+                      />
+                   </div>
                 </div>
-                <div>
-                   <label className="text-xs text-gray-500 block mb-1">最高在线 (PCU)</label>
-                   <input 
-                    type="number" 
-                    value={data.maxConcurrent || ''}
-                    onChange={(e) => handleInputChange(index, 'maxConcurrent', e.target.value)}
-                    className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-tech outline-none" 
-                  />
+                <div className="flex items-center gap-2 md:block">
+                   <label className="md:hidden text-xs text-gray-500 w-20">PCU:</label>
+                   <div className="relative w-full">
+                      <span className="hidden md:block text-[10px] text-gray-500 mb-1 uppercase tracking-wider">峰值 (PCU)</span>
+                      <input 
+                        type="number" 
+                        value={data.maxConcurrent || ''}
+                        onChange={(e) => handleInputChange(index, 'maxConcurrent', e.target.value)}
+                        className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white text-sm focus:border-tech outline-none" 
+                      />
+                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="flex justify-center">
             <button
               onClick={handleSubmit}
-              className="px-8 py-3 bg-gradient-to-r from-tech to-blue-600 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-105 transition-all"
+              className="px-12 py-4 bg-gradient-to-r from-tech to-blue-600 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-105 transition-all text-sm flex items-center gap-2"
             >
+              <Sparkles className="w-4 h-4" />
               生成可视化趋势 & AI 诊断
             </button>
           </div>
