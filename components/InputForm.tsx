@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StreamData } from '../types';
-import { Sparkles, ScanEye, Keyboard, UploadCloud, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { Sparkles, ScanEye, Keyboard, UploadCloud, Loader2, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
 import { recognizeStreamData } from '../services/geminiService';
 
 interface InputFormProps {
@@ -16,6 +16,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange, onSubmit, 
   // Default to OCR mode
   const [mode, setMode] = useState<InputMode>('ocr');
   const [isScanning, setIsScanning] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Effect: If data exists (beyond default ID/Date), switch to manual mode automatically
@@ -40,6 +41,8 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange, onSubmit, 
     if (!file) return;
 
     setIsScanning(true);
+    setErrorMsg(null);
+    
     try {
       const extractedData = await recognizeStreamData(file);
       onChange({
@@ -50,9 +53,9 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange, onSubmit, 
         notes: data.notes || extractedData.notes
       });
       setMode('manual'); // Switch to manual view to let user review
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('识别失败，请尝试重新上传或手动输入');
+      setErrorMsg(error.message || '识别失败，请尝试重新上传或手动输入');
     } finally {
       setIsScanning(false);
       // Reset input
@@ -122,7 +125,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange, onSubmit, 
                     <div className="flex flex-col items-center z-10">
                         <Loader2 className="w-12 h-12 text-tech animate-spin mb-4" />
                         <h3 className="text-xl font-bold text-white mb-2">AI 视觉引擎正在解析罗盘...</h3>
-                        <p className="text-gray-400 text-sm">正在提取 GPM、CTR 及流量结构</p>
+                        <p className="text-gray-400 text-sm">正在提取 GPM、CTR 及流量结构 (过程可能需要 30秒)</p>
                     </div>
                 ) : (
                     <>
@@ -145,6 +148,13 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange, onSubmit, 
                         >
                             选择图片上传
                         </button>
+
+                        {errorMsg && (
+                           <div className="mt-6 flex items-center gap-2 text-red-400 bg-red-500/10 px-4 py-3 rounded-lg border border-red-500/20 max-w-md">
+                              <AlertCircle className="w-5 h-5 shrink-0" />
+                              <span className="text-sm font-medium">{errorMsg}</span>
+                           </div>
+                        )}
                     </>
                 )}
                 {/* Background scanning effect */}
