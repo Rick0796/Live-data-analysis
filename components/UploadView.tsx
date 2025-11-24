@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, FileVideo, Cpu, CheckCircle2, FileText, ArrowRight, Target, Image as ImageIcon, Film, MousePointer2, Compass, BarChart2, AlertCircle } from 'lucide-react';
 import { StreamData } from '../types';
@@ -138,7 +139,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
       <div className="text-center mb-10 space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-tech/30 bg-tech/5 mb-2 mt-8 animate-float">
             <span className="w-2 h-2 rounded-full bg-tech animate-pulse"></span>
-            <span className="text-xs text-tech tracking-wider font-bold">v1.5</span>
+            <span className="text-xs text-tech tracking-wider font-bold">v1.6</span>
         </div>
         <h1 className="text-5xl md:text-7xl font-bold mb-2 tracking-tight leading-tight">
           <span className="text-white">抖音视频号</span> <br/>
