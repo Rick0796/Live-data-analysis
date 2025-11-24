@@ -16,14 +16,15 @@ const apiKey = getApiKey();
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 // --- HELPER: Process & Compress Image ---
-// 针对移动端 Web 的终极优化方案：
-// 1. 强制限制最大边长 800px (OCR 识别数字足够，极大降低体积)
-// 2. 质量降至 0.5
-// 3. 强制 JPEG 格式
+// V1.5 优化方案：
+// 平衡 OCR 清晰度与上传体积。
+// 1. 最大边长提升至 2048px (800px 太小导致数字模糊)
+// 2. 质量提升至 0.8 (文本边缘需要锐利)
+// 3. 超时延长至 60s (手机 CPU 处理大图需要时间)
 const processImage = async (file: File): Promise<{ mimeType: string; data: string }> => {
   return new Promise((resolve, reject) => {
-    // 设置 10 秒超时，防止大图处理卡死
-    const timeoutId = setTimeout(() => reject(new Error("图片处理超时，请尝试使用较小的图片")), 10000);
+    // 延长至 60 秒超时，给予手机端足够的处理时间
+    const timeoutId = setTimeout(() => reject(new Error("图片处理超时 (60s)，请检查手机性能或尝试截图上传")), 60000);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -34,10 +35,9 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
         let width = img.width;
         let height = img.height;
         
-        // 激进压缩策略：限制最大边长为 800px
-        // 经测试，Gemini Flash 在 800px 下识别 Dashboard 数字准确率无明显下降
-        // 但体积可从 5MB 降至 150KB 左右，秒传。
-        const MAX_DIMENSION = 800;
+        // 智能分辨率控制：2048px 是 OCR 的黄金平衡点
+        // 既能看清小数字，又能保证 Base64 不会爆内存
+        const MAX_DIMENSION = 2048;
         
         if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
           if (width > height) {
@@ -57,25 +57,23 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
            return;
         }
         
-        // 绘制并压缩
-        // 1. 填充白色背景 (防止 PNG 透明变黑)
-        ctx.fillStyle = '#FFFFFF'; 
+        // 绘制优化
+        ctx.fillStyle = '#FFFFFF'; // 填充白底，防止 PNG 透明变黑
         ctx.fillRect(0, 0, width, height);
-        // 2. 绘制图片
         ctx.drawImage(img, 0, 0, width, height);
         
-        // 3. 导出为 JPEG, 质量 0.5 (平衡体积与清晰度)
-        const dataURL = canvas.toDataURL('image/jpeg', 0.5);
+        // 导出配置：JPEG, 0.8 质量 (OCR 需要清晰的边缘)
+        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
         const base64 = dataURL.split(',')[1];
         
-        console.log(`Image compressed: ${width}x${height}, approx size: ${Math.round(base64.length / 1024)}KB`);
+        console.log(`[Image Processed] ${img.width}x${img.height} -> ${width}x${height}, Size: ~${Math.round(base64.length / 1024)}KB`);
         
         resolve({ mimeType: 'image/jpeg', data: base64 });
       };
       
       img.onerror = (e) => {
           clearTimeout(timeoutId);
-          console.error("Image object error", e);
+          console.error("Image load error", e);
           reject(new Error("图片文件损坏或格式不支持"));
       };
 
@@ -83,7 +81,7 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
     };
     reader.onerror = (error) => {
         clearTimeout(timeoutId);
-        reject(error);
+        reject(new Error("文件读取失败"));
     };
     reader.readAsDataURL(file);
   });
@@ -506,7 +504,7 @@ export const recognizeStreamData = async (imageFile: File): Promise<Partial<Stre
 
         const prompt = `
           请仔细识别这张直播数据大屏或罗盘截图。
-          你需要尽可能精准地提取以下字段，如果图片中没有该字段则忽略。
+          你需要尽可能精准地提取以下字段。如果图片模糊，请尽最大努力推测数字，如果完全无法识别则忽略。
           
           请返回 JSON 格式：
           {
@@ -540,15 +538,27 @@ export const recognizeStreamData = async (imageFile: File): Promise<Partial<Stre
 
         const text = response.text || "{}";
         const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanText) as Partial<StreamData>;
+        const result = JSON.parse(cleanText) as Partial<StreamData>;
+        
+        // 简单验证：如果所有数据都是空，则抛出错误
+        const hasValue = Object.values(result).some(v => v !== undefined && v !== null);
+        if (!hasValue) {
+           throw new Error("未能识别到有效数字，图片可能过于模糊或无数据。");
+        }
+        
+        return result;
+
     } catch (error: any) {
         console.error("Stream OCR Error Detail:", error);
         // 如果是我们的超时错误
         if (error.message.includes("图片处理超时")) {
-           throw new Error("手机图片过大，请尝试裁剪或使用小图。");
+           throw new Error(error.message);
+        }
+        if (error.message.includes("未能识别到有效数字")) {
+           throw new Error("识别失败：图片中未检测到清晰的数据表格。请尝试拍摄更清晰的局部照片。");
         }
         // 如果是 API 错误
-        throw new Error("AI 视觉识别失败，请检查网络或手动输入。");
+        throw new Error(`AI 视觉服务连接失败: ${error.message.slice(0, 50)}...`);
     }
 };
 
@@ -596,6 +606,6 @@ export const recognizeTrendData = async (imageFile: File): Promise<TrendData[]> 
         return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
         console.error("Trend OCR Error:", error);
-        throw new Error("趋势图识别失败，请手动录入。");
+        throw new Error("趋势图识别失败，请确保图片清晰或手动录入。");
     }
 };
