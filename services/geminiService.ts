@@ -17,7 +17,7 @@ const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 // --- HELPER: Process & Compress Image ---
 // 手机端上传的照片通常过大 (5-10MB)，容易导致 API 超时或 Payload 限制。
-// 此函数在前端进行压缩 (Max 1536px, JPEG 0.8)，将体积控制在 500KB 以内，同时标准化 MIME 类型。
+// 此函数在前端进行压缩 (Max 1024px, JPEG 0.6)，将体积严格控制在 500KB 以内。
 const processImage = async (file: File): Promise<{ mimeType: string; data: string }> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -28,8 +28,9 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
         let width = img.width;
         let height = img.height;
         
-        // 限制最大边长为 1536px (平衡 OCR 精度与上传速度)
-        const MAX_DIMENSION = 1536;
+        // 激进压缩策略：限制最大边长为 1024px
+        // 对于数据大屏的数字识别，1024px 清晰度足够，且能保证移动端上传速度
+        const MAX_DIMENSION = 1024;
         
         if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
           if (width > height) {
@@ -52,10 +53,12 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
         }
         
         // 绘制并压缩
+        ctx.fillStyle = '#FFFFFF'; // 防止 PNG 透明背景变黑
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
         
-        // 强制转换为 JPEG，质量 0.8
-        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+        // 质量降至 0.6，平衡体积与清晰度
+        const dataURL = canvas.toDataURL('image/jpeg', 0.6);
         const base64 = dataURL.split(',')[1];
         resolve({ mimeType: 'image/jpeg', data: base64 });
       };
@@ -63,6 +66,7 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
       img.onerror = (e) => {
           console.warn("Image compression failed, trying raw upload", e);
           const rawBase64 = (event.target?.result as string).split(',')[1];
+          // 如果是 HEIC 格式失败，Gemini API 其实支持 HEIC，直接传
           resolve({ mimeType: file.type || 'image/jpeg', data: rawBase64 });
       };
 
@@ -489,7 +493,7 @@ export const recognizeStreamData = async (imageFile: File): Promise<Partial<Stre
     const { mimeType, data } = await processImage(imageFile);
 
     const prompt = `
-      请识别这张直播罗盘/数据大屏图片中的关键数据。
+      请仔细识别这张直播数据大屏或罗盘截图。
       你需要尽可能精准地提取以下字段，如果图片中没有该字段则忽略。
       
       请返回 JSON 格式：
