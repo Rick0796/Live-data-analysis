@@ -15,18 +15,61 @@ const getApiKey = () => {
 const apiKey = getApiKey();
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-// --- HELPER: File to Base64 ---
-const fileToBase64 = (file: File): Promise<string> => {
+// --- HELPER: Process & Compress Image ---
+// 手机端上传的照片通常过大 (5-10MB)，容易导致 API 超时或 Payload 限制。
+// 此函数在前端进行压缩 (Max 1536px, JPEG 0.8)，将体积控制在 500KB 以内，同时标准化 MIME 类型。
+const processImage = async (file: File): Promise<{ mimeType: string; data: string }> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Remove data:image/xxx;base64, prefix
-      const base64 = result.split(',')[1];
-      resolve(base64);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // 限制最大边长为 1536px (平衡 OCR 精度与上传速度)
+        const MAX_DIMENSION = 1536;
+        
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIMENSION) / width);
+            width = MAX_DIMENSION;
+          } else {
+            width = Math.round((width * MAX_DIMENSION) / height);
+            height = MAX_DIMENSION;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+           // 极少数情况 Canvas 失败，回退到原始数据
+           const rawBase64 = (event.target?.result as string).split(',')[1];
+           resolve({ mimeType: file.type || 'image/jpeg', data: rawBase64 });
+           return;
+        }
+        
+        // 绘制并压缩
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // 强制转换为 JPEG，质量 0.8
+        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+        const base64 = dataURL.split(',')[1];
+        resolve({ mimeType: 'image/jpeg', data: base64 });
+      };
+      
+      img.onerror = (e) => {
+          console.warn("Image compression failed, trying raw upload", e);
+          const rawBase64 = (event.target?.result as string).split(',')[1];
+          resolve({ mimeType: file.type || 'image/jpeg', data: rawBase64 });
+      };
+
+      img.src = event.target?.result as string;
     };
-    reader.onerror = error => reject(error);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
   });
 };
 
@@ -442,7 +485,8 @@ export const analyzeTrend = async (data: TrendData[]): Promise<TrendAnalysisResu
 export const recognizeStreamData = async (imageFile: File): Promise<Partial<StreamData>> => {
     if (!apiKey || !ai) throw new Error("API Key 缺失");
 
-    const base64Data = await fileToBase64(imageFile);
+    // Use the new compression helper
+    const { mimeType, data } = await processImage(imageFile);
 
     const prompt = `
       请识别这张直播罗盘/数据大屏图片中的关键数据。
@@ -470,7 +514,7 @@ export const recognizeStreamData = async (imageFile: File): Promise<Partial<Stre
             model: 'gemini-2.5-flash',
             contents: {
                 parts: [
-                    { inlineData: { mimeType: imageFile.type, data: base64Data } },
+                    { inlineData: { mimeType, data } }, // Use processed data
                     { text: prompt }
                 ]
             },
@@ -491,7 +535,8 @@ export const recognizeStreamData = async (imageFile: File): Promise<Partial<Stre
 export const recognizeTrendData = async (imageFile: File): Promise<TrendData[]> => {
     if (!apiKey || !ai) throw new Error("API Key 缺失");
 
-    const base64Data = await fileToBase64(imageFile);
+    // Use the new compression helper
+    const { mimeType, data } = await processImage(imageFile);
 
     const prompt = `
       请识别这张包含多天/多场直播数据的表格或趋势图截图。
@@ -517,7 +562,7 @@ export const recognizeTrendData = async (imageFile: File): Promise<TrendData[]> 
             model: 'gemini-2.5-flash',
             contents: {
                 parts: [
-                    { inlineData: { mimeType: imageFile.type, data: base64Data } },
+                    { inlineData: { mimeType, data } }, // Use processed data
                     { text: prompt }
                 ]
             },
