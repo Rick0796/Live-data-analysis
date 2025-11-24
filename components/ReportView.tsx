@@ -260,182 +260,175 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
       </div>
 
       <div ref={reportRef} className="bg-[#050a14] p-6 rounded-3xl border border-white/5"> 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Left Column: Radar & Summary (4 cols) */}
-          <div className="lg:col-span-4 space-y-6">
-              {/* One Line Summary */}
-              <div className="bg-gradient-to-br from-purple-900/40 to-black border border-purple-500/30 rounded-3xl p-6 relative overflow-hidden">
-                  <div className="flex items-center gap-2 mb-3">
-                      <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
-                      <h3 className="text-white font-bold text-sm uppercase tracking-widest">AI 诊断结论</h3>
-                  </div>
-                  <p className="text-lg text-white font-medium italic leading-relaxed border-l-2 border-purple-500 pl-4">
-                      "{cleanText(report.oneLineSummary)}"
-                  </p>
-              </div>
-
-              {/* Radar Chart */}
-              <div className="glass-card rounded-3xl p-6 relative overflow-hidden border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.3)]">
-                  <div className="flex items-center gap-2 mb-2 text-tech">
-                      <Target className="w-5 h-5" />
-                      <h3 className="text-sm font-bold uppercase tracking-widest">五维能力模型</h3>
-                  </div>
-                  <div className="w-full h-[300px] relative z-10">
-                      <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={report.radarData}>
-                              <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                              <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'monospace' }} />
-                              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                              <Radar name="本场表现" dataKey="A" stroke="#00f0ff" strokeWidth={3} fill="#00f0ff" fillOpacity={0.15} />
-                          </RadarChart>
-                      </ResponsiveContainer>
-                  </div>
-              </div>
-
-              {/* User Q&A Section (Deep Thinking V1.6) */}
-              {report.userQuestionAnalysis && report.userQuestionAnalysis.length > 0 && (
-                <div className="bg-blue-500/5 border border-blue-500/20 rounded-3xl p-6">
+        {/* V1.6 Layout: BENTO GRID STYLE (Clean & Organized) */}
+        <div className="space-y-8">
+            
+            {/* Row 1: Summary (Hero) */}
+            <div className="w-full">
+                <div className="bg-gradient-to-br from-purple-900/40 to-black border border-purple-500/30 rounded-3xl p-8 relative overflow-hidden">
                     <div className="flex items-center gap-2 mb-4">
-                        <Brain className="w-5 h-5 text-blue-400" />
-                        <h3 className="text-blue-400 font-bold text-sm uppercase tracking-wide">深度痛点粉碎 (Deep Thinking)</h3>
+                        <Sparkles className="w-6 h-6 text-purple-400 animate-pulse" />
+                        <h3 className="text-white font-bold text-base uppercase tracking-widest">AI 核心诊断结论</h3>
                     </div>
-                    <div className="space-y-6">
-                        {report.userQuestionAnalysis.map((qa, idx) => (
-                            <div key={idx} className="space-y-3 pb-4 border-b border-white/5 last:border-0 last:pb-0">
-                                <h4 className="text-white font-bold text-sm flex items-start gap-2">
-                                    <span className="text-blue-500 mt-0.5">Q:</span>
-                                    {cleanText(qa.title)}
-                                </h4>
-                                
-                                {/* Deep Thinking Block */}
-                                <div className="ml-5 space-y-2">
-                                    <div className="text-xs text-blue-200/60 font-bold uppercase tracking-wider">深度思考 (Why)</div>
-                                    <p className="text-sm text-gray-400 leading-relaxed bg-black/20 p-2 rounded border-l-2 border-blue-500/30">
-                                        {cleanText(qa.deepThinking)}
-                                    </p>
+                    <p className="text-xl text-white font-medium italic leading-relaxed border-l-4 border-purple-500 pl-6">
+                        "{cleanText(report.oneLineSummary)}"
+                    </p>
+                </div>
+            </div>
 
-                                    <div className="text-xs text-tech/60 font-bold uppercase tracking-wider mt-2">反直觉策略 (Strategy)</div>
-                                    <p className="text-sm text-gray-300">
-                                        {cleanText(qa.strategy)}
-                                    </p>
-                                    
-                                    {qa.action && (
-                                        <div className="flex items-start gap-2 mt-2 text-sm text-green-300 bg-green-500/10 p-2 rounded">
-                                            <ArrowRight className="w-4 h-4 mt-0.5 shrink-0" />
-                                            <span>{cleanText(qa.action)}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+            {/* Row 2: Metrics & Deep Thinking (3 Columns) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Col 1: Radar */}
+                <div className="glass-card rounded-3xl p-6 border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.3)] flex flex-col">
+                    <div className="flex items-center gap-2 mb-4 text-tech">
+                        <Target className="w-5 h-5" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest">五维能力模型</h3>
+                    </div>
+                    <div className="flex-1 min-h-[250px] relative z-10">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={report.radarData}>
+                                <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'monospace' }} />
+                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                <Radar name="本场表现" dataKey="A" stroke="#00f0ff" strokeWidth={3} fill="#00f0ff" fillOpacity={0.15} />
+                            </RadarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
-              )}
-          </div>
 
-          {/* Middle Column: Diagnosis & Human Factor (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
-              {/* Human Factor Analysis */}
-              <div className="glass-card rounded-3xl p-1 overflow-hidden bg-gradient-to-br from-white/5 to-transparent">
-                  <div className="bg-black/40 p-5 rounded-[20px]">
-                      <div className="flex items-center gap-3 mb-4 border-b border-white/5 pb-3">
-                          <Mic2 className="w-5 h-5 text-purple-400" />
-                          <h3 className="text-base font-bold text-white">主播表现 & 话术分析</h3>
-                      </div>
-                      
-                      <div className="space-y-4">
-                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                {/* Col 2: Human Factor & Highlights */}
+                <div className="space-y-6">
+                     {/* Human Factor */}
+                    <div className="glass-card rounded-3xl p-6 border border-white/10">
+                        <div className="flex items-center gap-2 mb-4 text-purple-400">
+                            <Mic2 className="w-5 h-5" />
+                            <h3 className="text-sm font-bold uppercase tracking-widest">主播语感分析</h3>
+                        </div>
+                         <div className="bg-white/5 p-4 rounded-xl mb-4">
                               <div className="flex justify-between items-center mb-2">
-                                  <span className="text-xs text-gray-400 font-bold uppercase">语感与节奏</span>
-                                  <span className="text-xs text-purple-400 font-mono">评分: {report.humanFactorAnalysis?.rhythmScore || 0}/100</span>
+                                  <span className="text-xs text-gray-400 font-bold uppercase">节奏评分</span>
+                                  <span className="text-lg text-purple-400 font-mono font-bold">{report.humanFactorAnalysis?.rhythmScore || 0}</span>
                               </div>
                               <p className="text-sm text-gray-300 leading-relaxed">
                                   {cleanText(report.humanFactorAnalysis?.toneAnalysis || "暂无分析")}
                               </p>
                           </div>
-
-                          <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 flex gap-3 items-start">
+                          <div className="flex gap-3 items-start text-sm text-purple-200">
                               <Zap className="w-4 h-4 text-purple-400 mt-1 shrink-0" />
-                              <p className="text-sm text-purple-100">
-                                  <span className="font-bold text-purple-300">建议行动：</span> {cleanText(report.humanFactorAnalysis?.suggestion || "暂无建议")}
-                              </p>
+                              <p>{cleanText(report.humanFactorAnalysis?.suggestion || "暂无建议")}</p>
                           </div>
-                      </div>
-                  </div>
-              </div>
-
-              {/* Highlights */}
-              {report.highlights && report.highlights.length > 0 && (
-                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ThumbsUp className="w-4 h-4 text-green-400" />
-                    <h4 className="text-green-400 font-bold text-sm uppercase">数据亮点分析</h4>
-                  </div>
-                  <div className="space-y-3">
-                    {report.highlights.map((highlight, idx) => (
-                      <div key={idx} className="flex gap-2 items-start">
-                        <CheckCircle2 className="w-4 h-4 text-green-500/60 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs text-green-300 font-bold mb-0.5">{highlight.title}</p>
-                          <p className="text-xs text-gray-400">{highlight.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                    </div>
+                    
+                    {/* Highlights */}
+                    {report.highlights && report.highlights.length > 0 && (
+                         <div className="glass-card rounded-3xl p-6 border border-green-500/30 bg-green-500/5">
+                            <div className="flex items-center gap-2 mb-4 text-green-400">
+                                <ThumbsUp className="w-5 h-5" />
+                                <h3 className="text-sm font-bold uppercase tracking-widest">亮点复盘</h3>
+                            </div>
+                            <div className="space-y-3">
+                                {report.highlights.slice(0, 2).map((h, i) => (
+                                    <div key={i} className="flex gap-2 items-start">
+                                        <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                                        <span className="text-sm text-gray-300">{h.content}</span>
+                                    </div>
+                                ))}
+                            </div>
+                         </div>
+                    )}
                 </div>
-              )}
 
-              {/* Diagnosis List */}
-              <div className="space-y-3">
-                  {report.diagnosis.map((issue, idx) => (
-                      <div key={idx} className="bg-surface border border-white/5 rounded-xl p-4 hover:border-white/10 transition-all hover:bg-white/5">
-                          <div className="flex items-start gap-3">
-                              <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${issue.severity === 'high' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : issue.severity === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
+                {/* Col 3: Deep Thinking (User Q&A) */}
+                <div className="glass-card rounded-3xl p-6 border border-blue-500/30 bg-blue-500/5 flex flex-col">
+                     <div className="flex items-center gap-2 mb-4 text-blue-400">
+                        <Brain className="w-5 h-5" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest">深度痛点粉碎</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 max-h-[400px]">
+                        {report.userQuestionAnalysis && report.userQuestionAnalysis.length > 0 ? (
+                             <div className="space-y-6">
+                                {report.userQuestionAnalysis.map((qa, idx) => (
+                                    <div key={idx} className="space-y-2 pb-4 border-b border-blue-500/10 last:border-0 last:pb-0">
+                                        <h4 className="text-white font-bold text-sm flex items-start gap-2">
+                                            <MessageCircleQuestion className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                            {cleanText(qa.title)}
+                                        </h4>
+                                        
+                                        <div className="ml-6 bg-black/20 p-3 rounded-lg border-l-2 border-blue-500/30">
+                                            <div className="text-[10px] text-blue-300/60 font-bold uppercase mb-1">底层逻辑 (Why)</div>
+                                            <p className="text-xs text-gray-300 leading-relaxed mb-2">{cleanText(qa.deepThinking)}</p>
+                                            
+                                            <div className="text-[10px] text-tech/60 font-bold uppercase mb-1">反直觉打法 (Strategy)</div>
+                                            <p className="text-xs text-gray-300 leading-relaxed">{cleanText(qa.strategy)}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center text-gray-500 py-10">无特定痛点分析</div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Row 3: Diagnosis & Strategy (2 Columns - Balanced) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                {/* Diagnosis List */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 px-2">
+                        <AlertTriangle className="w-5 h-5 text-red-400" />
+                        <h3 className="text-lg font-bold text-white">核心问题诊断</h3>
+                    </div>
+                    {report.diagnosis.map((issue, idx) => (
+                      <div key={idx} className="bg-surface border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all hover:bg-white/5 group">
+                          <div className="flex items-start gap-4">
+                              <div className={`mt-2 w-2 h-2 rounded-full shrink-0 ${issue.severity === 'high' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : issue.severity === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
                               <div>
-                                  <h4 className={`font-bold text-sm mb-2 ${issue.severity === 'high' ? 'text-red-400' : 'text-white'}`}>{cleanText(issue.title)}</h4>
+                                  <h4 className={`font-bold text-base mb-2 group-hover:text-white transition-colors ${issue.severity === 'high' ? 'text-red-400' : 'text-gray-200'}`}>{cleanText(issue.title)}</h4>
                                   <p className="text-sm text-gray-400 leading-relaxed text-justify whitespace-pre-wrap">{cleanText(issue.content)}</p>
                               </div>
                           </div>
                       </div>
                   ))}
-              </div>
-          </div>
+                </div>
 
-          {/* Right Column: Strategy (3 cols) */}
-          <div className="lg:col-span-3">
-              <div className="glass-card rounded-3xl p-5 h-full border border-tech/20 relative overflow-hidden bg-tech/5 flex flex-col">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                      <Zap className="w-24 h-24 text-tech" />
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2 relative z-10">
-                      <span className="w-1 h-5 bg-tech rounded-full"></span>
-                      深度全维优化 (Deep Strategy)
-                  </h3>
-                  
-                  <div className="space-y-6 relative z-10 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                      {report.strategy.map((strat, idx) => (
-                          <div key={idx} className="relative bg-black/20 rounded-xl p-4 border border-white/5">
-                              <div className="flex items-center gap-2 mb-3">
-                                  {strat.type === 'traffic' && <span className="bg-purple-500/20 text-purple-300 text-[10px] px-2 py-0.5 rounded border border-purple-500/20 flex items-center gap-1"><Network className="w-3 h-3"/> 流量</span>}
-                                  {strat.type === 'operation' && <span className="bg-blue-500/20 text-blue-300 text-[10px] px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1"><Settings className="w-3 h-3"/> 运营</span>}
-                                  {strat.type === 'content' && <span className="bg-green-500/20 text-green-300 text-[10px] px-2 py-0.5 rounded border border-green-500/20 flex items-center gap-1"><Megaphone className="w-3 h-3"/> 内容</span>}
+                {/* Full Strategy */}
+                <div className="glass-card rounded-3xl p-6 border border-tech/20 bg-tech/5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                      <Zap className="w-32 h-32 text-tech" />
+                    </div>
+                    <div className="flex items-center gap-2 mb-6 relative z-10">
+                        <div className="w-8 h-8 rounded-lg bg-tech/20 flex items-center justify-center text-tech">
+                             <Settings className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">深度全维优化方案</h3>
+                    </div>
+
+                    <div className="space-y-4 relative z-10">
+                         {report.strategy.map((strat, idx) => (
+                          <div key={idx} className="relative bg-black/30 rounded-2xl p-5 border border-white/5 hover:border-tech/30 transition-all">
+                              <div className="flex items-center gap-3 mb-4">
+                                  {strat.type === 'traffic' && <span className="bg-purple-500/20 text-purple-300 text-xs px-2 py-1 rounded border border-purple-500/20 flex items-center gap-1"><Network className="w-3 h-3"/> 流量层级</span>}
+                                  {strat.type === 'operation' && <span className="bg-blue-500/20 text-blue-300 text-xs px-2 py-1 rounded border border-blue-500/20 flex items-center gap-1"><Settings className="w-3 h-3"/> 运营节奏</span>}
+                                  {strat.type === 'content' && <span className="bg-green-500/20 text-green-300 text-xs px-2 py-1 rounded border border-green-500/20 flex items-center gap-1"><Megaphone className="w-3 h-3"/> 内容话术</span>}
                                   
-                                  <h4 className="font-bold text-white text-xs uppercase tracking-wide flex-1">{cleanText(strat.title)}</h4>
+                                  <h4 className="font-bold text-white text-sm uppercase tracking-wide flex-1">{cleanText(strat.title)}</h4>
                               </div>
                               
-                              <div className="space-y-4">
+                              <div className="space-y-4 pl-2 border-l border-white/10 ml-1">
                                   {strat.steps.map((step, sIdx) => (
-                                      <div key={sIdx}>
-                                          <p className="text-sm text-gray-300 leading-relaxed mb-2 flex gap-2">
-                                              <span className="text-tech/50 mt-1">•</span>
+                                      <div key={sIdx} className="relative">
+                                          <div className="absolute -left-[13px] top-2 w-1.5 h-1.5 rounded-full bg-gray-600"></div>
+                                          <p className="text-sm text-gray-300 leading-relaxed mb-2">
                                               <span className="whitespace-pre-wrap">{cleanText(step.depthAnalysis)}</span>
                                           </p>
 
                                           {step.scriptOptimization && (
-                                              <div className="ml-4 mt-2 p-3 bg-yellow-500/10 border-l-2 border-yellow-500 rounded-r-lg">
+                                              <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                                                   <h5 className="text-[10px] font-bold text-yellow-500 uppercase mb-1 flex items-center gap-1">
-                                                      <Mic2 className="w-3 h-3" /> 话术优化
+                                                      <Mic2 className="w-3 h-3" /> 话术优化建议
                                                   </h5>
                                                   <p className="text-sm text-gray-200 italic font-medium whitespace-pre-wrap">
                                                       "{cleanText(step.scriptOptimization)}"
@@ -447,9 +440,11 @@ export const ReportView: React.FC<ReportViewProps> = ({ isLoading, report, data,
                               </div>
                           </div>
                       ))}
-                  </div>
-              </div>
-          </div>
+                    </div>
+                </div>
+
+            </div>
+
         </div>
       </div>
 
