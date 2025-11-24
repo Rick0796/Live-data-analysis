@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, FileVideo, Cpu, CheckCircle2, FileText, ArrowRight, Target, Image as ImageIcon, Film, MousePointer2, Compass, BarChart2 } from 'lucide-react';
+import { UploadCloud, FileVideo, Cpu, CheckCircle2, FileText, ArrowRight, Target, Image as ImageIcon, Film, MousePointer2, Compass, BarChart2, AlertCircle } from 'lucide-react';
 import { StreamData } from '../types';
 import { recognizeStreamData } from '../services/geminiService';
 
@@ -14,6 +14,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
   const [stage, setStage] = useState<Stage>('IDLE');
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mock data for video simulation
@@ -39,14 +40,10 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
           if (stage === 'GENERATING') increment = Math.random() * 2; 
   
           const next = prev + increment;
-          
-          // Check stage transitions based on progress in this closure isn't perfect for React state 
-          // relying on the useEffect below to handle stage transitions is safer
           return next >= 100 ? 100 : next;
         });
       }, 100);
 
-      // Cleanup happens via effect or manual clear if needed, but simple simulation logic is handled in useEffect
       return () => clearInterval(timer);
   };
 
@@ -54,8 +51,6 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
   useEffect(() => {
     if (stage === 'IDLE' || stage === 'COMPLETE') return;
 
-    // Only auto-increment for simulation, not for real OCR if we want real progress
-    // But for consistency, we'll keep the progress bar moving for visual feedback
     const timer = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 99) return prev;
@@ -67,7 +62,6 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
         
         const next = prev + increment;
 
-        // Auto stage transition logic for visual effect
         if (prev < 30 && next >= 30 && stage === 'UPLOADING') setStage('ANALYZING');
         if (prev < 85 && next >= 85 && stage === 'ANALYZING') setStage('GENERATING');
         
@@ -88,6 +82,8 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
   };
 
   const handleProcessFile = async (file: File) => {
+      setErrorMsg(null);
+      
       if (file.type.startsWith('image/')) {
           // Real OCR for Images
           setStage('UPLOADING');
@@ -105,17 +101,16 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
               setStage('COMPLETE');
               setProgress(100);
               setTimeout(() => onComplete(data), 800);
-          } catch (error) {
+          } catch (error: any) {
               console.error(error);
-              alert("图片识别失败，请确保图片清晰。");
               setStage('IDLE');
               setProgress(0);
+              setErrorMsg(error.message || "图片识别失败，请确保图片清晰。");
           }
       } else {
           // Simulation for Video/Other
           setStage('UPLOADING');
           setProgress(0);
-          // Wait for simulation to finish roughly
           setTimeout(() => {
               setStage('COMPLETE');
               setProgress(100);
@@ -143,7 +138,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
       <div className="text-center mb-10 space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-tech/30 bg-tech/5 mb-2 mt-8 animate-float">
             <span className="w-2 h-2 rounded-full bg-tech animate-pulse"></span>
-            <span className="text-xs text-tech tracking-wider font-bold">v1.4</span>
+            <span className="text-xs text-tech tracking-wider font-bold">v1.5</span>
         </div>
         <h1 className="text-5xl md:text-7xl font-bold mb-2 tracking-tight leading-tight">
           <span className="text-white">抖音视频号</span> <br/>
@@ -220,6 +215,13 @@ export const UploadView: React.FC<UploadViewProps> = ({ onComplete, onDirectEnte
                     <MousePointer2 className="w-4 h-4 text-gray-400 group-hover:text-tech transition-colors" />
                     <span className="text-gray-300 font-medium group-hover:text-white transition-colors">无文件？直接进入数据录入</span>
                 </button>
+
+                {errorMsg && (
+                    <div className="mt-4 flex items-center gap-2 text-red-400 bg-red-500/10 px-4 py-3 rounded-lg border border-red-500/20 max-w-md animate-[fadeIn_0.3s]">
+                        <AlertCircle className="w-5 h-5 shrink-0" />
+                        <span className="text-sm font-medium text-left">{errorMsg}</span>
+                    </div>
+                )}
             </>
           ) : (
             <div className="w-full max-w-md space-y-8">
