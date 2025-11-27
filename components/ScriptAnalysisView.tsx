@@ -1,16 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
-import { MessageSquareText, Play, RefreshCw, Zap, Users, Send, Bot, Copy, Check, MousePointer2, Brain, RotateCcw } from 'lucide-react';
-import { ScriptStage, ScriptAnalysisResult, HistoryRecord, ScriptState } from '../types';
+import { MessageSquareText, Play, RefreshCw, Zap, Users, Send, Bot, Copy, Check, MousePointer2, Brain, RotateCcw, Package, Tag, ShieldCheck, Scale, Sparkles } from 'lucide-react';
+import { ScriptStage, HistoryRecord, ScriptState } from '../types';
 import { analyzeScript, refineScript } from '../services/geminiService';
 
 interface ScriptAnalysisViewProps {
   onSaveToHistory?: (record: HistoryRecord) => void;
-  // New props for state persistence
   scriptState: ScriptState;
   setScriptState: React.Dispatch<React.SetStateAction<ScriptState>>;
-  // Deprecated props (left optionally for interface compat, but unused)
-  initialInputs?: { stage: ScriptStage; product: string; content: string };
-  initialResult?: ScriptAnalysisResult | null;
 }
 
 export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({ 
@@ -18,17 +15,14 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
   scriptState,
   setScriptState 
 }) => {
+  if (!scriptState) return null;
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
-
-  // AI Agent Refinement State
   const [refineInput, setRefineInput] = useState('');
   const [isRefining, setIsRefining] = useState(false);
-
-  // Copy State
   const [copied, setCopied] = useState(false);
 
-  // Fake progress bar effect
   useEffect(() => {
     let interval: any;
     if (isAnalyzing) {
@@ -53,19 +47,32 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
     setScriptState({
         stage: 'newbie',
         productName: '',
-        scriptContent: '',
+        benchmark: '',
+        priceMechanism: '',
+        sellingPoints: '',
+        guarantee: '',
         result: null
     });
   };
 
   const handleAnalyze = async () => {
-    if (!scriptState.productName.trim() || !scriptState.scriptContent.trim()) return;
+    // Basic validation
+    if (!scriptState.productName.trim() || !scriptState.priceMechanism.trim()) {
+        alert("请至少填写产品名称和价格机制");
+        return;
+    }
     
     setIsAnalyzing(true);
     updateState({ result: null });
     
     try {
-      const analysis = await analyzeScript(scriptState.stage, scriptState.productName, scriptState.scriptContent);
+      const analysis = await analyzeScript(scriptState.stage, {
+          productName: scriptState.productName,
+          benchmark: scriptState.benchmark,
+          priceMechanism: scriptState.priceMechanism,
+          sellingPoints: scriptState.sellingPoints,
+          guarantee: scriptState.guarantee
+      });
       updateState({ result: analysis });
 
       if (onSaveToHistory) {
@@ -73,7 +80,14 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
           type: 'SCRIPT',
           id: Date.now().toString(),
           timestamp: Date.now(),
-          inputs: { stage: scriptState.stage, product: scriptState.productName, content: scriptState.scriptContent },
+          inputs: { 
+              stage: scriptState.stage, 
+              productName: scriptState.productName,
+              benchmark: scriptState.benchmark,
+              priceMechanism: scriptState.priceMechanism,
+              sellingPoints: scriptState.sellingPoints,
+              guarantee: scriptState.guarantee
+          },
           report: analysis
         });
       }
@@ -89,7 +103,6 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
     setIsRefining(true);
     try {
       const newResult = await refineScript(scriptState.result, refineInput);
-      // Update only the result part of the global state
       updateState({ 
         result: {
             ...scriptState.result,
@@ -105,8 +118,7 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
   };
 
   const handleCopy = () => {
-    if (!scriptState.result) return;
-    // Modified: Only copy the content (script), excluding the logic explanation.
+    if (!scriptState.result?.simulation?.steps) return;
     const textToCopy = scriptState.result.simulation.steps.map(s => `${s.label}: ${s.content}`).join('\n\n');
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
@@ -126,8 +138,7 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
             <p className="text-gray-400 text-sm">AI 针对不同阶段进行逻辑拆解与实时流量模拟</p>
             </div>
         </div>
-        {/* Reset Button */}
-        {(scriptState.productName || scriptState.scriptContent || scriptState.result) && (
+        {(scriptState.productName || scriptState.result) && (
             <button 
                 onClick={handleReset}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-all"
@@ -139,17 +150,17 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Input Column */}
+        {/* Input Column - UPDATED STRUCTURE */}
         <div className="lg:col-span-2 space-y-6">
           <div className="glass-card p-6 rounded-2xl border border-white/10">
             
             {/* Stage Selector */}
-            <div className="mb-6">
+            <div className="mb-8">
               <label className="block text-sm font-medium text-gray-400 mb-3">当前阶段 (决定模拟策略)</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'newbie', label: '新手小白', desc: '点对点实操' },
-                  { id: 'veteran', label: '老手运营', desc: '憋单节奏' },
+                  { id: 'newbie', label: '点对点平播', desc: '新手信任模型' }, 
+                  { id: 'veteran', label: '老手憋单', desc: '供需博弈模型' },
                   { id: 'master', label: '行业高手', desc: '动态控流' },
                 ].map((s) => (
                   <button
@@ -168,34 +179,83 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
               </div>
             </div>
 
-            {/* Product Input */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-400 mb-2">核心售卖产品</label>
-              <input
-                type="text"
-                value={scriptState.productName}
-                onChange={(e) => updateState({ productName: e.target.value })}
-                placeholder="例如：9.9元福利款垃圾袋 / 199元真丝衬衫"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-tech outline-none transition-all"
-              />
-            </div>
+            {/* Structured Product Inputs */}
+            <div className="space-y-5">
+                 {/* 1. Product Name */}
+                <div className="group">
+                    <label className="flex items-center gap-2 text-xs font-bold text-tech uppercase mb-2">
+                        <Package className="w-3 h-3" /> 产品名称
+                    </label>
+                    <input
+                        type="text"
+                        value={scriptState.productName}
+                        onChange={(e) => updateState({ productName: e.target.value })}
+                        placeholder="例如：90%白鸭绒羽绒服"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-tech outline-none transition-all placeholder-gray-600 text-sm"
+                    />
+                </div>
 
-            {/* Script Input */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-400 mb-2">现有话术 / 痛点描述</label>
-              <textarea
-                value={scriptState.scriptContent}
-                onChange={(e) => updateState({ scriptContent: e.target.value })}
-                rows={8}
-                placeholder="粘贴你的草稿，或者你想表达的产品卖点..."
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-tech outline-none transition-all resize-none"
-              />
+                {/* 2. Benchmark */}
+                <div className="group">
+                    <label className="flex items-center gap-2 text-xs font-bold text-purple-400 uppercase mb-2">
+                        <Scale className="w-3 h-3" /> 对标渠道/价格
+                    </label>
+                    <input
+                        type="text"
+                        value={scriptState.benchmark}
+                        onChange={(e) => updateState({ benchmark: e.target.value })}
+                        placeholder="例如：商场专柜卖 1299元"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-400 outline-none transition-all placeholder-gray-600 text-sm"
+                    />
+                </div>
+
+                {/* 3. My Mechanism */}
+                <div className="group">
+                    <label className="flex items-center gap-2 text-xs font-bold text-green-400 uppercase mb-2">
+                        <Tag className="w-3 h-3" /> 我的价格/机制
+                    </label>
+                    <input
+                        type="text"
+                        value={scriptState.priceMechanism}
+                        onChange={(e) => updateState({ priceMechanism: e.target.value })}
+                        placeholder="例如：工厂直发 399元，再送一条羊毛围巾"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-green-400 outline-none transition-all placeholder-gray-600 text-sm"
+                    />
+                </div>
+
+                 {/* 4. Selling Points */}
+                 <div className="group">
+                    <label className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase mb-2">
+                        <Sparkles className="w-3 h-3" /> 核心卖点/痛点
+                    </label>
+                    <textarea
+                        value={scriptState.sellingPoints}
+                        onChange={(e) => updateState({ sellingPoints: e.target.value })}
+                        rows={3}
+                        placeholder="例如：不钻绒、三防面料、显瘦版型、充绒量200g"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-400 outline-none transition-all placeholder-gray-600 text-sm resize-none"
+                    />
+                </div>
+
+                 {/* 5. Guarantee */}
+                 <div className="group">
+                    <label className="flex items-center gap-2 text-xs font-bold text-yellow-500 uppercase mb-2">
+                        <ShieldCheck className="w-3 h-3" /> 售后保障
+                    </label>
+                    <input
+                        type="text"
+                        value={scriptState.guarantee}
+                        onChange={(e) => updateState({ guarantee: e.target.value })}
+                        placeholder="例如：运费险、七天无理由"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-yellow-500 outline-none transition-all placeholder-gray-600 text-sm"
+                    />
+                </div>
             </div>
 
             <button
               onClick={handleAnalyze}
-              disabled={isAnalyzing || !scriptState.productName || !scriptState.scriptContent}
-              className="w-full py-4 bg-gradient-to-r from-tech to-blue-600 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={isAnalyzing || !scriptState.productName}
+              className="w-full mt-8 py-4 bg-gradient-to-r from-tech to-blue-600 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isAnalyzing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
               {isAnalyzing ? 'AI 正在拆解...' : '开始场景模拟'}
@@ -205,8 +265,6 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
 
         {/* Output Column */}
         <div className="lg:col-span-3">
-          
-          {/* Progress Bar */}
           {isAnalyzing && (
             <div className="mb-4">
                <div className="flex justify-between text-xs text-tech mb-1">
@@ -222,7 +280,7 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
           {scriptState.result ? (
             <div className="space-y-6 animate-[fadeIn_0.5s_ease-out]">
               
-              {/* Logic Diagnosis Card */}
+              {/* Logic Diagnosis */}
               <div className="bg-gradient-to-br from-purple-900/20 to-black border border-purple-500/30 rounded-2xl p-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-20">
                   <Zap className="w-16 h-16 text-purple-500" />
@@ -243,18 +301,17 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
                 </div>
               </div>
 
-              {/* Simulation Card */}
+              {/* Simulation */}
               <div className="glass-card rounded-2xl border border-tech/30 overflow-hidden flex flex-col">
-                {/* Sim Header */}
                 <div className="bg-white/5 p-4 border-b border-white/10 flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full animate-pulse ${scriptState.stage === 'newbie' ? 'bg-yellow-400' : 'bg-red-500'}`}></div>
-                    <span className="text-white font-bold text-sm">{scriptState.result.simulation.scenario}</span>
+                    <span className="text-white font-bold text-sm">{scriptState.result.simulation?.scenario || "模拟场景"}</span>
                   </div>
                   <div className="flex items-center gap-4">
                      <div className="flex items-center gap-2 text-xs font-mono text-tech bg-tech/10 px-3 py-1 rounded-full">
                         <Users className="w-3 h-3" />
-                        {scriptState.result.simulation.trafficContext}
+                        {scriptState.result.simulation?.trafficContext || "流量环境"}
                     </div>
                     <button 
                         onClick={handleCopy}
@@ -266,19 +323,13 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
                   </div>
                 </div>
 
-                {/* Sim Content Steps */}
                 <div className="p-6 space-y-6">
-                  {scriptState.result.simulation.steps.map((step, idx) => (
+                  {scriptState.result.simulation?.steps?.map((step, idx) => (
                     <div key={idx} className="relative pl-8 group">
-                      {/* Timeline Line */}
                       <div className="absolute left-[11px] top-8 h-full w-[2px] bg-white/5 group-last:hidden"></div>
-                      
-                      {/* Step Dot */}
                       <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center z-10 group-hover:border-tech/50 group-hover:bg-tech/10 transition-colors">
                         <span className="text-[10px] font-mono text-gray-500 group-hover:text-tech">{idx + 1}</span>
                       </div>
-
-                      {/* Content */}
                       <div>
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-tech font-bold text-sm">{step.label}</span>
@@ -288,8 +339,6 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
                             </span>
                           )}
                         </div>
-
-                        {/* Logic Explanation (Deep Thinking) */}
                         {step.logic && (
                           <div className="mb-2 flex gap-2 items-start bg-blue-500/5 p-2 rounded-lg border border-blue-500/10">
                               <Brain className="w-3 h-3 text-blue-400 mt-0.5 shrink-0" />
@@ -299,7 +348,6 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
                               </p>
                           </div>
                         )}
-
                         <div className="bg-black/30 p-4 rounded-xl border border-white/5 text-gray-200 text-sm leading-relaxed font-medium">
                           "{step.content}"
                         </div>
@@ -308,7 +356,6 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
                   ))}
                 </div>
 
-                {/* AI Agent Tweaker */}
                 <div className="p-4 bg-black/40 border-t border-white/10">
                    <div className="flex items-center gap-3 mb-3">
                       <Bot className="w-4 h-4 text-tech" />
@@ -333,16 +380,14 @@ export const ScriptAnalysisView: React.FC<ScriptAnalysisViewProps> = ({
                    </div>
                 </div>
               </div>
-
             </div>
           ) : (
-            // Empty State / Placeholder
             <div className="h-full flex flex-col items-center justify-center text-center p-12 glass-card rounded-2xl border border-dashed border-white/10">
               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
                 <MessageSquareText className="w-10 h-10 text-gray-600" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">等待指令</h3>
-              <p className="text-gray-500 max-w-sm">请在左侧输入您的产品和话术草稿，AI 将为您生成{scriptState.stage === 'newbie' ? '点对点实操' : '动态憋单'}演示。</p>
+              <p className="text-gray-500 max-w-sm">请在左侧完整填写产品五维档案，AI 将为您生成{scriptState.stage === 'newbie' ? '点对点平播' : '动态憋单'}演示。</p>
             </div>
           )}
         </div>

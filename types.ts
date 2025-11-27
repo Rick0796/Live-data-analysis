@@ -119,8 +119,13 @@ export interface ScriptAnalysisResult {
 // Unified State for Script Analysis Persistence
 export interface ScriptState {
   stage: ScriptStage;
+  // New structured fields
   productName: string;
-  scriptContent: string;
+  benchmark: string;
+  priceMechanism: string;
+  sellingPoints: string;
+  guarantee: string;
+  
   result: ScriptAnalysisResult | null;
 }
 
@@ -142,4 +147,4 @@ export interface TrendAnalysisResult {
 export type HistoryRecord = 
   | { type: 'STREAM'; id: string; timestamp: number; data: StreamData; report: AnalysisResult }
   | { type: 'TREND'; id: string; timestamp: number; data: TrendData[]; report: TrendAnalysisResult }
-  | { type: 'SCRIPT'; id: string; timestamp: number; inputs: { stage: ScriptStage; product: string; content: string }; report: ScriptAnalysisResult };
+  | { type: 'SCRIPT'; id: string; timestamp: number; inputs: Omit<ScriptState, 'result'>; report: ScriptAnalysisResult };

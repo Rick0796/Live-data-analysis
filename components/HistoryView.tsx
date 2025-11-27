@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { HistoryRecord } from '../types';
 import { Clock, ChevronRight, Activity, MessageSquareText, FileText } from 'lucide-react';
@@ -71,7 +70,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ history, onViewRecord 
         <>
            <div className="flex items-center gap-2 mb-1">
              <span className="text-xs bg-white/10 px-2 rounded text-white">{record.inputs.stage}</span>
-             <span className="text-xs text-gray-400 font-mono truncate max-w-[120px]">{record.inputs.product}</span>
+             <span className="text-xs text-gray-400 font-mono truncate max-w-[120px]">{record.inputs.productName}</span>
            </div>
            <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
              场景: {record.report.simulation.scenario}

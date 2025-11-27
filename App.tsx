@@ -15,12 +15,12 @@ import { ParticleBackground } from './components/ParticleBackground';
 import { Tab, StreamData, KnowledgeItem, AnalysisResult, HistoryRecord, TrendData, TrendAnalysisResult, ScriptAnalysisResult, ScriptStage, ScriptState, User } from './types';
 import { analyzeStream } from './services/geminiService';
 
-// Initial Knowledge Base (Same as before)
+// Initial Knowledge Base
 const INITIAL_KNOWLEDGE: KnowledgeItem[] = [
   {
     id: '0',
     title: '低流速激活：点对点与平播的抉择 (Velocity vs Conversion)',
-    content: '【核心：真诚是唯一的必杀技】\n\n1. **流速 vs 成交 (The Trade-off)**：\n   - 缺流速？-> 憋单（Holding）。制造拥挤感，牺牲成交速度换取互动密度，撬动系统推流。\n   - 缺成交/求稳？-> 点对点平播（One-on-One）。放弃拉升流速，把每一个进来的流量吃干抹净，建立深度信任。\n\n2. **点对点 反向抓取 (Reverse Grip)**：\n   - ❌ **严禁**：“欢迎XX，喜欢的扣1”。这是机器人的废话。\n   - ✅ **反向指令**：“**XX（用户名）你先别拍！手停一下！**”（利用好奇心+损失厌恶，强制停留）。\n   - ✅ **点穴式抓取**：盯着进场名单，一个一个喊名字，让他觉得你在跟他一个人说话。\n\n3. **理由的充分性 (Reason Why)**：\n   - 低在线时，只给便宜不给理由=骗子。\n   - **必须真诚**：“王同学，这款睡衣平时卖99，今天**厂家把尺码标印歪了**，完全不影响穿，但我没法正价卖。你要是不嫌弃，**我给你改个9.9**，就当交个朋友。”\n   - **逻辑**：只有当观众觉得“你便宜给我是因为你也想止损/气老板/冲粉”，这个便宜才是合理的，信任才会产生。',
+    content: '【核心：流速 vs 成交 (The Trade-off)】\n1. **缺流速？-> 憋单 (Holding)**：制造拥挤感，牺牲成交速度换取互动密度，撬动系统推流。\n2. **缺成交/求稳？-> 点对点平播 (One-on-One)**：放弃拉升流速，把每一个进来的流量吃干抹净，建立深度信任。\n\n【强制执行：低流速反向抓取】\n**没人/没流速时，必须先进行点对点反向抓取！**\n严禁自顾自讲品，必须盯着进场名单喊名字：“**XX（用户名）你先别拍！手停一下！**”（利用好奇心+损失厌恶，强制停留）。\n\n【极致平播成交模型 (4步法闭环)】\n1. **Step 1: 拉新/破冰 (Acquisition)**\n   - **话术**：“XX，**你先别拍！听我说完再决定**，我不能让你盲目消费。”\n   - **锚点**：引用对标渠道的高价，引出“骨折价”。\n   - **理由**：解释为什么便宜（为了口碑/冲榜/厂家直供）。\n\n2. **Step 2: 塑品/价值 (Value)**\n   - **五感营销**：使用“不是...而是...”拉踩竞品。\n   - 必须包含**视觉、触觉、使用场景**细节描述。\n   - 强调“天花板”品质，用过回不去。\n\n3. **Step 3: 保障/信任 (Assurance)**\n   - 原话1：“同等价格对比品质，同等品质对比价格。”\n   - 原话2：“收到货不满意，**你不用退回来，我一分钱不要。**”\n   - 原话3：“我干直播就一句话，**赚该赚的钱，睡安稳的觉**。”\n\n4. **Step 4: 逼单/收割 (Closing)**\n   - **指令**：明确下单动作。\n   - **施压**：“我现在直播间人少，**宁可不赚钱甚至亏本，也要把好产品推出去拉数据**。最后3单，手慢无。”',
     isActive: true,
   },
   {
@@ -104,7 +104,10 @@ const App: React.FC = () => {
   const [scriptState, setScriptState] = useState<ScriptState>({
     stage: 'newbie',
     productName: '',
-    scriptContent: '',
+    benchmark: '',
+    priceMechanism: '',
+    sellingPoints: '',
+    guarantee: '',
     result: null
   });
 
@@ -254,8 +257,11 @@ const App: React.FC = () => {
     } else if (record.type === 'SCRIPT') {
       setScriptState({
         stage: record.inputs.stage,
-        productName: record.inputs.product,
-        scriptContent: record.inputs.content,
+        productName: record.inputs.productName,
+        benchmark: record.inputs.benchmark,
+        priceMechanism: record.inputs.priceMechanism,
+        sellingPoints: record.inputs.sellingPoints,
+        guarantee: record.inputs.guarantee,
         result: record.report
       });
       setActiveTab(Tab.SCRIPT_ANALYSIS);

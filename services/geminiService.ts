@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { StreamData, KnowledgeItem, AnalysisResult, ChatMessage, ScriptStage, ScriptAnalysisResult, TrendData, TrendAnalysisResult } from "../types";
+import { StreamData, KnowledgeItem, AnalysisResult, ChatMessage, ScriptStage, ScriptAnalysisResult, TrendData, TrendAnalysisResult, ScriptState } from "../types";
 
 // --- API KEY CONFIGURATION ---
 const getApiKey = () => {
@@ -17,9 +17,12 @@ const apiKey = getApiKey();
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 // --- HELPER: Process & Compress Image ---
+// V1.6 终极优化方案：1024px / 0.6
 const processImage = async (file: File): Promise<{ mimeType: string; data: string }> => {
   return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => reject(new Error("图片处理超时 (60s)")), 60000);
+    // 60秒超时
+    const timeoutId = setTimeout(() => reject(new Error("图片处理超时 (60s)，请检查手机性能或尝试截图上传")), 60000);
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -28,7 +31,10 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
+        
+        // V1.6: 锁定 1024px
         const MAX_DIMENSION = 1024;
+        
         if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
           if (width > height) {
             height = Math.round((height * MAX_DIMENSION) / width);
@@ -38,52 +44,72 @@ const processImage = async (file: File): Promise<{ mimeType: string; data: strin
             height = MAX_DIMENSION;
           }
         }
+
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { reject(new Error("Canvas error")); return; }
-        ctx.fillStyle = '#FFFFFF';
+        if (!ctx) {
+           reject(new Error("浏览器不支持图像处理"));
+           return;
+        }
+        
+        // 绘制优化
+        ctx.fillStyle = '#FFFFFF'; // 填充白底
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
+        
+        // 导出配置：JPEG, 0.6 质量
         const dataURL = canvas.toDataURL('image/jpeg', 0.6);
-        resolve({ mimeType: 'image/jpeg', data: dataURL.split(',')[1] });
+        const base64 = dataURL.split(',')[1];
+        
+        resolve({ mimeType: 'image/jpeg', data: base64 });
       };
+      
+      img.onerror = (e) => {
+          clearTimeout(timeoutId);
+          reject(new Error("图片文件损坏或格式不支持"));
+      };
+
       img.src = event.target?.result as string;
+    };
+    reader.onerror = (error) => {
+        clearTimeout(timeoutId);
+        reject(new Error("文件读取失败"));
     };
     reader.readAsDataURL(file);
   });
 };
 
 const SYSTEM_INSTRUCTION = `
-你是一位**实战派直播运营导师（凡哥）**，拥有千万级GMV的实战经验，版本号 V1.7。
-你的风格：**极其接地气、一针见血、逻辑严密、洞察人性、不说废话**。
+你是一位**实战派直播运营导师**，拥有千万级GMV的实战经验，版本号 V1.6。
+你的风格：**极其接地气、一针见血、逻辑严密、洞察人性**。
 
-【绝对红线 - 负面清单 (严禁出现)】
-1. **严禁**使用“欢迎xx”、“xx你好”、“亲爱的”等客服式开头。
-2. **严禁**使用“提升互动”、“优化话术”这种正确的废话。必须说具体怎么改。
-3. **严禁**机械式复述数据。
-4. **严禁**客套。上来直接分析问题。
+【核心原则 V1.6 - 严格执行】
 
-【核心方法论：深度思考 (Deep Thinking)】
-你在分析任何问题时，必须遵守以下逻辑链条，不能停留在表面：
-1. **现象 (Phenomenon)**: 数据跌了/没人说话。
-2. **底层逻辑 (The Why)**: 必须解释背后的**算法机制** (如: ECPM = 出价*CTR*CVR) 或 **人性弱点** (如: 损失厌恶、从众心理、贪婪)。
-   - *错误示范*: 流量不行是因为你没互动。
-   - *正确示范*: 流量断崖是因为你在03:00处不仅没有释放福利钩子，反而进行了枯燥的参数讲解，导致互动密度低于同层级竞争对手，系统判定你的直播间留不住人，触发了推流熔断。
-3. **反直觉策略 (Counter-Intuitive Strategy)**: 
-   - 越想卖，越不要卖。
-   - 越没人，越要赶人。
-   - *示例*: 不要请求观众点关注，要说“今天的福利只有粉丝能拍，没点关注的抢不到别怪我”。
-4. **具体动作 (Actionable Steps)**: 必须有画面感。如“拿起手机给镜头看时间”、“假装跟场控吵架”。
+1.  **🚫 负面清单 (严禁出现)**：
+    - **严禁使用任何形式的点名欢迎**，例如：“欢迎XX”、“XX在吗”、“XX你好”。
+    - **严禁机械式问候**。
+    - **严禁使用 "P2P"**，必须统称为 “点对点”。
+    - **严禁使用“兄弟”、“老大哥”**，统称“同学”或“大家”。
+
+2.  **✅ 深度思考模型 (Deep Thinking)**：
+    - 针对用户的痛点（User Questions），不能只给表面回答。
+    - 必须按照 **[深度思考 (原因)] -> [反直觉策略 (打法)] -> [具体动作 (话术)]** 的逻辑拆解。
+    - **低流速激活逻辑**：当流量低时，不要试图“拉”人，而是要“拦”人。使用反向指令：“**XX你先不要去拍！**”。
+
+3.  **全维度策略优化**：
+    - **流量 (Traffic)**：如何利用停留时长去撬动推流？（赛马机制）
+    - **运营 (Operation)**：弹窗节奏、发福袋时机。
+    - **内容 (Content)**：话术的真诚度、理由的充分性。
 
 【输出接口定义】
 interface AnalysisResponse {
-  oneLineSummary: string; // 一针见血的总结 (狠辣)
+  oneLineSummary: string; // 一针见血的总结
   radarData: { subject: string; A: number; fullMark: 100 }[]; 
   highlights?: { title: string; content: string }[];
   diagnosis: {
     title: string; 
-    content: string; // 必须包含 Deep Thinking (算法+人性)
+    content: string; 
     severity: 'high' | 'medium' | 'low';
   }[];
   humanFactorAnalysis: {
@@ -91,18 +117,17 @@ interface AnalysisResponse {
     toneAnalysis: string; 
     suggestion: string; 
   };
-  // V1.7 核心: 深度痛点粉碎 (必须详细)
   userQuestionAnalysis?: { 
-     title: string; // 用户的痛点或问题
-     deepThinking: string; // 【深度思考】包含算法逻辑与人性心理分析，不少于50字，必须深刻。
-     strategy: string; // 【策略】具体的反直觉打法。
-     action: string; // 【动作】Step 1, Step 2, Step 3 (非常具体的操作指令)。
+     title: string; 
+     deepThinking: string; 
+     strategy: string; 
+     action: string; 
   }[];
   strategy: {
     title: string; 
     type: 'traffic' | 'operation' | 'content'; 
     steps: {
-        depthAnalysis: string; // 融合动作与原理的大白话教学，必须解释 Why
+        depthAnalysis: string; // 融合动作与原理的大白话教学
         scriptOptimization?: string; // 话术优化（必须包含“XX先不要拍”的反向逻辑）
     }[]; 
   }[];
@@ -113,10 +138,8 @@ export const analyzeStream = async (
   data: StreamData, 
   knowledgeBase: KnowledgeItem[]
 ): Promise<AnalysisResult> => {
-  
   if (!apiKey || !ai) throw new Error("API Key 未配置。");
 
-  // 0. 数据预检
   if ((data.gmv || 0) === 0 && (data.totalViews || 0) === 0) {
     return {
         oneLineSummary: "数据为空，无法进行深度诊断。",
@@ -129,36 +152,32 @@ export const analyzeStream = async (
 
   const activeStrategies = knowledgeBase
     .filter(k => k.isActive)
-    .map(k => `策略[${k.title}]: ${k.content}`)
+    .map(k => `${k.content}`)
     .join('\n');
 
-  const prompt = `
-    【凡哥 V1.7 深度复盘指令】
-    
-    我是直播运营学员，这是我的一场直播数据，请用你的“深度思考模型”帮我粉碎痛点。
-    
-    【核心数据】
-    - 场观: ${data.totalViews} | 在线峰值: ${data.maxConcurrent}
-    - GMV: ${data.gmv} | GPM: ${data.gpm}
-    - CTR: ${data.ctr}% | 停留: ${data.retentionRate}秒
-    
-    【关键上下文】
-    1. 话术片段: "${data.transcriptSnippet}"
-    2. **用户痛点/备注**: "${data.notes}" (请重点对这里进行 Deep Thinking 拆解，不要放过任何细节)
+  // Low CTR Trigger Logic
+  let ctrInstruction = "";
+  if (data.ctr !== undefined && data.ctr < 5) { 
+    ctrInstruction = `
+    【严重警告：CTR过低触发器】
+    检测到 CTR (点击率) 仅为 ${data.ctr}%。
+    你 **必须** 在 [strategy] 中增加一条运营策略，强调“强制提升商点曝光”。
+    `;
+  }
 
-    【必须遵守的数据库底层规则】
+  const prompt = `
+    我是直播运营学员，这是我的一场直播数据。
+    【核心数据】：场观 ${data.totalViews}, 在线峰值 ${data.maxConcurrent}, GMV ${data.gmv}, GPM ${data.gpm}, CTR ${data.ctr}%, 停留 ${data.retentionRate}秒。
+    【关键上下文】：话术片段: "${data.transcriptSnippet}", 用户备注: "${data.notes}"
+
+    【知识库参考】
     ${activeStrategies}
 
-    【任务要求】
-    1. **一针见血**: oneLineSummary 必须狠，直接指出是“人”的问题还是“货”的问题。
-    2. **深度痛点粉碎 (userQuestionAnalysis)**: 
-       - 针对用户的备注，必须给出 2-3 个维度的深度拆解。
-       - 解释为什么会发生这种情况？是赛马机制输了？还是标签乱了？
-    3. **策略生成**: 
-       - 如果 CTR < 5%，必须在策略中包含“重做商点图”或“憋单强开”的指令。
-       - 如果 停留 < 40秒，必须在策略中包含“反向抓取”话术。
-    4. **Tone**: 严禁客套，像个严厉的教练。
+    【任务指令 V1.6】
+    1. **深度痛点粉碎**：请针对用户备注进行 Deep Thinking 拆解。
+    2. **话术优化**：严禁出现“欢迎XX”。如果是低流速，必须使用“**XX你先别拍**”的反向逻辑。
     
+    ${ctrInstruction}
     输出纯 JSON 格式。
   `;
 
@@ -175,7 +194,6 @@ export const analyzeStream = async (
 
     const text = response.text || "{}";
     const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
     return JSON.parse(cleanText) as AnalysisResult;
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
@@ -202,16 +220,13 @@ export const sendChatMessage = async (
     - 用户备注/痛点：${streamData.notes}
     - 策略基础：${strategyContext}
     
-    【你的身份】
-    你是**凡哥**，资深直播策略导师。
+    【你的身份 V1.6】
+    你是**资深直播策略导师**。
     
-    【对话原则 - 绝对红线】
-    1. **严禁**使用"欢迎"、"你好"、"亲"等字眼。
-    2. **严禁**车轱辘话。直接给答案。
-    3. **Deep Thinking**: 
-       - 用户问“怎么留人”，你要告诉他“留人的本质是制造未完成感”。
-       - 用户问“怎么成交”，你要告诉他“成交的本质是信任倒置”。
-    4. **反常识**: 多用“不要...要...”、“听我一句劝”的句式。
+    【聊天原则 - 绝对红线】
+    1. **严禁**使用"欢迎XX"、"XX在吗"、"你好XX"等点名格式。
+    2. **严禁**使用"P2P"。
+    3. **必须**基于"Velocity vs Conversion"（流速vs转化）逻辑回答。
 
     【用户的问题】
     "${message}"
@@ -225,51 +240,57 @@ export const sendChatMessage = async (
   try {
     const prompt = `
       ${contextString}
-      
       历史对话：
       ${chatHistory.map(h => `${h.role}: ${h.parts[0].text}`).join('\n')}
-      
-      请直接回复纯文本内容，不要 Markdown，像真人语音转文字一样自然。
+      请直接回复纯文本内容，不要 Markdown。
     `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-
-    return response.text || "这个问题有点深，你再具体说说？";
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text || "抱歉，请再说一次。";
   } catch (error) {
     console.error("Chat Error", error);
-    return "网络连接抖动，稍等。";
+    return "网络连接有点问题，我们稍后再聊。";
   }
 };
 
 const SCRIPT_SYSTEM_INSTRUCTION = `
-你是一位**实战派直播话术与心理学专家** (凡哥AI V1.7)。
+你是一位**实战派直播话术专家 (V1.7 深度版)**。你的目标是生成**极具煽动性、逻辑严密、细节丰富**的直播脚本。
 
-【核心任务：构建完整的成交逻辑闭环】
-你不仅要生成话术，还要解释**每一句话背后的心理学原理**。
+【核心任务】
+针对用户提供的【产品档案】，生成一套**1:1复刻“极致平播成交模型”**的实战脚本。
+**严禁生成空洞的套话！** 每一句台词都必须结合具体的产品卖点、价格和痛点。
 
-【4步闭环框架】
-1.  **拉新/破冰**: 利用损失厌恶(Loss Aversion)，强制制造停留。
-2.  **塑品/价值**: 痛点(Pain) + 卖点(Gain) + 场景(Context)。
-3.  **保障/信任**: 风险逆转(Risk Reversal)。
-4.  **逼单/收割**: 稀缺性(Scarcity) + 紧迫感(Urgency)。
+【必须严格执行的 4 步法闭环 (The 4-Step Loop)】
+
+1.  **Step 1: 拉新/破冰 (Acquisition) - 必须“反向抓取”**
+    - **核心逻辑**：当流速低时，不要叫卖，要“拦人”。
+    - **强制话术**：“**XX（模拟点名），你先别拍！听我说完再决定**，我不能让你盲目消费。”
+    - **结合输入**：必须引用【对标渠道/价格】建立高价锚点，然后给出【我的价格/机制】作为惊喜，并解释为什么便宜（为了口碑/冲榜）。
+
+2.  **Step 2: 塑品/价值 (Value) - 必须“五感描述”**
+    - **核心逻辑**：不仅仅说好，要说“怎么好”。使用“不是...而是...”句式拉踩。
+    - **结合输入**：将【核心卖点/痛点】转化为具体的使用场景。例如：提到“充绒量”时，要描述“穿在身上像裹着云朵一样暖和”。
+    - **话术特征**：“天花板级别的品质”、“用过就回不去”。
+
+3.  **Step 3: 保障/信任 (Assurance) - 必须“底气十足”**
+    - **强制原话1**：“**同等价格对比品质，同等品质对比价格。**”
+    - **强制原话2**：“**收到货不满意，你不用退回来，我一分钱不要！**” (结合【售后保障】进行承诺)
+    - **强制原话3**：“**我干直播就一句话，赚该赚的钱，睡安稳的觉。**”
+
+4.  **Step 4: 逼单/收割 (Closing) - 必须“数据施压”**
+    - **核心逻辑**：给观众一个现在下单的理由（亏本冲量）。
+    - **强制话术**：“下方小黄车1号链接...**我现在直播间人少，宁可不赚钱甚至亏本，也要把好产品推出去拉数据。**...**最后3单，手慢无。**”
 
 【输出格式 JSON】
 interface ScriptAnalysisResult {
-  logicDiagnosis: {
-    originalFlaw: string; // 深度诊断：原始话术哪里没做好？
-    optimizedLogic: string; // 优化思路：为什么要这么改？
-  };
+  logicDiagnosis: { originalFlaw: string; optimizedLogic: string; };
   simulation: {
     scenario: string; 
     trafficContext: string;
     steps: {
-      label: string; 
-      logic: string; // 【Deep Thinking】必须解释这句话是为了触发用户的什么心理？
-      content: string; // 具体话术
-      actionTip?: string; // 主播动作
+      label: string; // 必须严格为 "拉新/破冰", "塑品/价值", "保障/信任", "逼单/收割"
+      logic: string; 
+      content: string; 
+      actionTip?: string; 
     }[];
   };
 }
@@ -277,40 +298,23 @@ interface ScriptAnalysisResult {
 
 export const analyzeScript = async (
   stage: ScriptStage,
-  productName: string,
-  scriptContent: string
+  inputs: Omit<ScriptState, 'result' | 'stage'>
 ): Promise<ScriptAnalysisResult> => {
   if (!apiKey || !ai) throw new Error("API Key 缺失");
 
-  let modeInstruction = "";
-  if (stage === 'newbie') {
-      modeInstruction = `
-      【当前模式：新手/平播】
-      - **核心逻辑**：信任大于流量。
-      - **拉新**：使用“反向指令” -> “XX你先不要拍，听我讲完”。
-      - **逼单**：严禁倒计时，要用“改价”、“送运费险”等温和手段。
-      `;
-  } else {
-      modeInstruction = `
-      【当前模式：老手/憋单】
-      - **核心逻辑**：流量大于信任。
-      - **拉新**：极度夸张的悬念。“今天这个机制，我只讲一遍”。
-      - **逼单**：高压倒计时。“3、2、1，上车！锁库存！”。
-      `;
-  }
-
   const prompt = `
     学员阶段：${stage}
-    售卖产品：${productName}
-    原始话术："${scriptContent}"
-
-    ${modeInstruction}
+    【产品档案】
+    产品名称：${inputs.productName}
+    对标渠道/价格：${inputs.benchmark}
+    我的价格/机制：${inputs.priceMechanism}
+    核心卖点/痛点：${inputs.sellingPoints}
+    售后保障：${inputs.guarantee}
 
     任务：
-    1. 诊断原始话术。
-    2. **强制生成实战模拟**：必须包含 4 个步骤。
-    3. **Logic 字段必须填写**：解释每句话的心理学原理。
-    4. 输出纯 JSON。
+    1. 分析该产品的售卖逻辑。
+    2. **强制生成实战模拟**：如果是 'newbie'，必须严格复刻 SCRIPT_SYSTEM_INSTRUCTION 中的 **极致平播成交模型 (4步法)**，必须将上述产品信息融入到话术中，必须包含所有强制原话。
+    3. 输出纯 JSON。
   `;
 
   try {
@@ -333,129 +337,62 @@ export const analyzeScript = async (
   }
 };
 
-export const refineScript = async (
-  originalResult: ScriptAnalysisResult,
-  userInstruction: string
-): Promise<ScriptAnalysisResult> => {
+export const refineScript = async (originalResult: ScriptAnalysisResult, userInstruction: string): Promise<ScriptAnalysisResult> => {
   if (!apiKey || !ai) throw new Error("API Key 缺失");
-
-  const prompt = `
-    当前生成的话术结果：${JSON.stringify(originalResult)}
-    用户的修改指令："${userInstruction}"
-    
-    请优化 simulation 部分。
-    **核心约束**：必须保持 4 步法闭环结构。
-    **Tone**: 凡哥风格，犀利、直接。
-    输出纯 JSON。
-  `;
-
+  const prompt = `当前生成的话术：${JSON.stringify(originalResult)}。用户指令："${userInstruction}"。请优化 simulation，保持 4 步法闭环不变。输出 JSON。`;
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: {
-        systemInstruction: SCRIPT_SYSTEM_INSTRUCTION,
-        temperature: 0.7,
-        responseMimeType: "application/json"
-      }
+      config: { systemInstruction: SCRIPT_SYSTEM_INSTRUCTION, temperature: 0.7, responseMimeType: "application/json" }
     });
-
     const text = response.text || "{}";
-    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanText) as ScriptAnalysisResult;
+    return JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim()) as ScriptAnalysisResult;
   } catch (error) {
-    console.error("Refine Script Error:", error);
     throw new Error("AI 修改话术失败");
   }
 };
-
+// ... analyzeTrend & recognizeStreamData & recognizeTrendData remain same
 export const analyzeTrend = async (data: TrendData[]): Promise<TrendAnalysisResult> => {
     if (!apiKey || !ai) throw new Error("API Key 缺失");
-  
-    const prompt = `
-      请对以下近 ${data.length} 天的直播数据进行深度趋势诊断：${JSON.stringify(data)}
-      要求：
-      1. 寻找拐点。
-      2. 解释数据波动背后的逻辑 (如：GMV涨了但GPM跌了，说明流量泛了)。
-      输出 JSON: { "analysis": "...", "suggestion": "..." }
-    `;
-  
+    const prompt = `请对以下近 ${data.length} 天的直播数据进行深度趋势诊断：${JSON.stringify(data)} 输出 JSON: { "analysis": "...", "suggestion": "..." }`;
     try {
-      const response: GenerateContentResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-      
+      const response: GenerateContentResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: "application/json" } });
       const text = response.text || "{}";
-      const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanText) as TrendAnalysisResult;
+      return JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim()) as TrendAnalysisResult;
     } catch (error) {
       return { analysis: "AI 分析服务暂时繁忙。", suggestion: "建议关注核心指标波动。" };
     }
-  }
-
+}
 export const recognizeStreamData = async (imageFile: File): Promise<Partial<StreamData>> => {
     if (!apiKey || !ai) throw new Error("API Key 缺失");
-
     try {
         const { mimeType, data } = await processImage(imageFile);
-
-        const prompt = `
-          请识别这张直播数据大屏或罗盘截图。返回 JSON:
-          {
-            "maxConcurrent": number, "totalViews": number, "gmv": number, "gpm": number, 
-            "retentionRate": number, "ctr": number, "interactionRate": number, 
-            "entryRate": number, "clickConversionRate": number, "durationMinutes": number
-          }
-          只返回数值。
-        `;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ inlineData: { mimeType, data } }, { text: prompt }] },
-            config: { responseMimeType: "application/json" }
-        });
-
+        const prompt = `请识别直播数据截图。返回 JSON: { "maxConcurrent": number, "totalViews": number, "gmv": number, "gpm": number, "retentionRate": number, "ctr": number, "interactionRate": number, "entryRate": number, "clickConversionRate": number, "durationMinutes": number }`;
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: { parts: [{ inlineData: { mimeType, data } }, { text: prompt }] }, config: { responseMimeType: "application/json" } });
         const text = response.text || "{}";
-        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const result = JSON.parse(cleanText) as Partial<StreamData>;
-        
+        const result = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim()) as Partial<StreamData>;
         const hasValue = Object.values(result).some(v => v !== undefined && v !== null);
         if (!hasValue) throw new Error("未能识别到有效数字");
-        
         return result;
-
     } catch (error: any) {
-        console.error("Stream OCR Error Detail:", error);
         const errStr = error.message || error.toString();
-        
         if (errStr.includes("图片处理超时")) throw new Error(errStr);
-        if (errStr.includes("400")) throw new Error("上传失败：图片处理异常，请重试。");
-        
+        if (errStr.includes("User location")) throw new Error("API 区域限制错误。");
+        if (errStr.includes("400")) throw new Error("上传失败：图片可能过大。");
         throw new Error(`AI 视觉服务连接失败: ${errStr.slice(0, 50)}...`);
     }
 };
-
 export const recognizeTrendData = async (imageFile: File): Promise<TrendData[]> => {
     if (!apiKey || !ai) throw new Error("API Key 缺失");
-
     try {
         const { mimeType, data } = await processImage(imageFile);
         const prompt = `识别趋势图表格。返回 JSON Array: [{ "date": string, "gmv": number, "totalViews": number, "gpm": number, "maxConcurrent": number }]`;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ inlineData: { mimeType, data } }, { text: prompt }] },
-            config: { responseMimeType: "application/json" }
-        });
-
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: { parts: [{ inlineData: { mimeType, data } }, { text: prompt }] }, config: { responseMimeType: "application/json" } });
         const text = response.text || "[]";
-        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanText);
+        const parsed = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
         return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-        console.error("Trend OCR Error:", error);
-        throw new Error("趋势图识别失败");
+        throw new Error("趋势图识别失败，请确保图片清晰或手动录入。");
     }
 };
